@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 export function ProfileSection(): React.JSX.Element {
   const [name, setName] = useState('');
@@ -40,40 +39,36 @@ export function ProfileSection(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-lg flex-col gap-6">
       <div>
-        <h2 className="text-base font-semibold">Profile</h2>
+        <h2 className="text-lg font-semibold">Profile</h2>
         <p className="text-sm text-muted-foreground">Your name and contact details.</p>
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="profile-name">Name</Label>
-          <Input
-            id="profile-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-          />
-        </div>
+        <Input
+          className="h-11 text-base"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+        />
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="profile-email">
-            Email{' '}
-            <span className="text-xs font-normal text-muted-foreground">
-              (used for crash reports &amp; feedback)
-            </span>
-          </Label>
           <Input
-            id="profile-email"
+            className="h-11 text-base"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
           />
+          <p className="text-sm text-muted-foreground">Used for crash reports and feedback only.</p>
         </div>
 
-        <Button onClick={handleSave} disabled={!canSave || isSaving} size="sm">
+        <Button
+          className="h-10 w-fit px-6 text-sm"
+          onClick={handleSave}
+          disabled={!canSave || isSaving}
+        >
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </div>

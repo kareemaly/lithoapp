@@ -73,63 +73,62 @@ export function AboutSection(): React.JSX.Element {
   const message = updateMessage(updateState);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center gap-4">
-        <LithoLogo className="h-12 w-auto shrink-0" />
+        <LithoLogo className="h-14 w-auto shrink-0" />
         <div className="flex flex-col gap-0.5">
-          <p className="text-base font-semibold">Litho</p>
-          {version && <p className="text-xs text-muted-foreground">v{version}</p>}
+          <p className="text-lg font-semibold">Litho</p>
+          {version && <p className="text-sm text-muted-foreground">v{version}</p>}
           <a
             href="https://lithoapp.com"
             target="_blank"
             rel="noreferrer"
-            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            className="text-sm text-muted-foreground underline-offset-2 hover:underline"
           >
             lithoapp.com
           </a>
         </div>
       </div>
 
-      <div className="rounded-lg border p-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-4 rounded-lg border p-5">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium">Updates</p>
           <Button
             variant="outline"
-            size="sm"
+            className="h-10 px-4 text-sm"
             disabled={isChecking || isDownloading}
             onClick={() => window.litho.update.check()}
           >
-            <Search />
+            <Search className="mr-1.5 h-4 w-4" />
             {isChecking ? 'Checking...' : 'Check for updates'}
           </Button>
         </div>
 
         {isDownloading && (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Progress value={percent} className="h-1.5" />
-            <p className="text-xs text-muted-foreground">{percent}%</p>
+            <p className="text-sm text-muted-foreground">{percent}%</p>
           </div>
         )}
 
         {message && !isDownloading && (
-          <p className={`text-xs ${messageColor(updateState.status)}`}>{message}</p>
+          <p className={`text-sm ${messageColor(updateState.status)}`}>{message}</p>
         )}
 
         {(updateState.status === 'available' || updateState.status === 'downloaded') && (
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2">
             {updateState.status === 'available' && (
-              <Button size="sm" onClick={() => window.litho.update.download()}>
-                <ArrowDownToLine />
+              <Button className="h-10 px-4 text-sm" onClick={() => window.litho.update.download()}>
+                <ArrowDownToLine className="mr-1.5 h-4 w-4" />
                 Download
               </Button>
             )}
             {updateState.status === 'downloaded' && (
               <Button
-                size="sm"
-                className="bg-green-600 text-white hover:bg-green-700"
+                className="h-10 bg-green-600 px-4 text-sm text-white hover:bg-green-700"
                 onClick={() => window.litho.update.install()}
               >
-                <RefreshCw />
+                <RefreshCw className="mr-1.5 h-4 w-4" />
                 Restart to update
               </Button>
             )}

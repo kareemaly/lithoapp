@@ -1,6 +1,13 @@
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useOpencode } from '@/hooks/use-opencode';
 import { loadChatPrefs, saveChatPrefs } from '@/lib/chat-prefs';
 import type { OpencodeClient, ProviderInfo } from '@/lib/opencode-client-types';
@@ -47,9 +54,13 @@ function DefaultModelSelector({ client }: { client: OpencodeClient }): React.JSX
   if (error) {
     return (
       <div className="flex items-center gap-2 text-sm text-destructive">
-        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+        <AlertCircle className="h-4 w-4 shrink-0" />
         Failed to load providers
-        <Button variant="outline" size="sm" onClick={() => void fetchProviders()}>
+        <Button
+          variant="outline"
+          className="h-10 px-4 text-sm"
+          onClick={() => void fetchProviders()}
+        >
           Retry
         </Button>
       </div>
@@ -57,7 +68,12 @@ function DefaultModelSelector({ client }: { client: OpencodeClient }): React.JSX
   }
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading providers...</p>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading providers...
+      </div>
+    );
   }
 
   function handleProviderChange(newProviderId: string): void {
@@ -74,43 +90,42 @@ function DefaultModelSelector({ client }: { client: OpencodeClient }): React.JSX
   if (connectedProviders.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Connect a provider above to set a default model.
+        Connect a provider below to set a default model.
       </p>
     );
   }
 
   return (
-    <div className="flex gap-3">
-      <div className="flex-1 flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Provider</span>
-        <select
-          className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
-          value={providerId}
-          onChange={(e) => handleProviderChange(e.target.value)}
-        >
-          <option value="">-- select --</option>
-          {connectedProviders.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+    <div className="flex gap-4">
+      <div className="flex flex-1 flex-col gap-1.5">
+        <span className="text-sm text-muted-foreground">Provider</span>
+        <Select value={providerId} onValueChange={handleProviderChange}>
+          <SelectTrigger className="h-11 w-full text-sm">
+            <SelectValue placeholder="Select provider" />
+          </SelectTrigger>
+          <SelectContent>
+            {connectedProviders.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <div className="flex-1 flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Model</span>
-        <select
-          className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
-          value={modelId}
-          onChange={(e) => handleModelChange(e.target.value)}
-          disabled={!providerId}
-        >
-          <option value="">-- select --</option>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-1 flex-col gap-1.5">
+        <span className="text-sm text-muted-foreground">Model</span>
+        <Select value={modelId} onValueChange={handleModelChange} disabled={!providerId}>
+          <SelectTrigger className="h-11 w-full text-sm">
+            <SelectValue placeholder="Select model" />
+          </SelectTrigger>
+          <SelectContent>
+            {models.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
@@ -120,9 +135,9 @@ export function AiProvidersSection(): React.JSX.Element {
   const { client, baseUrl, status } = useOpencode();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
-        <h2 className="text-base font-semibold">AI Providers</h2>
+        <h2 className="text-lg font-semibold">AI Providers</h2>
         <p className="text-sm text-muted-foreground">
           Connect AI providers and set your default model.
         </p>
@@ -130,7 +145,7 @@ export function AiProvidersSection(): React.JSX.Element {
 
       {status === 'connected' && client && baseUrl && (
         <>
-          <div className="flex flex-col gap-3">
+          <div className="flex max-w-lg flex-col gap-3">
             <h3 className="text-sm font-medium">Default model</h3>
             <DefaultModelSelector client={client} />
           </div>

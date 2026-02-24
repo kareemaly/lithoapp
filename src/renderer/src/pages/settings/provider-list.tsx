@@ -1,9 +1,7 @@
 import { AlertCircle, Loader2, RefreshCw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { useProviderList } from '@/hooks/use-provider-list';
 import type { OpencodeClient } from '@/lib/opencode-client-types';
 import { ProviderRow } from './provider-row';
@@ -36,111 +34,98 @@ export function ProviderList({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Providers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading providers...
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-3 rounded-lg border p-5">
+        <p className="text-sm font-medium">Providers</p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading providers...
+        </div>
+      </div>
     );
   }
 
   if (error || !providers) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Providers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-sm text-destructive">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            {error || 'Failed to load providers'}
-          </div>
-          <Button variant="outline" size="sm" className="mt-2" onClick={refetch}>
-            <RefreshCw className="mr-1 h-3 w-3" />
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-3 rounded-lg border p-5">
+        <p className="text-sm font-medium">Providers</p>
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error || 'Failed to load providers'}
+        </div>
+        <Button variant="outline" className="h-10 w-fit px-4 text-sm" onClick={refetch}>
+          <RefreshCw className="mr-1.5 h-4 w-4" />
+          Retry
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Providers</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {connectedProviders.length > 0 && (
-          <>
-            <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+    <div className="flex flex-col gap-4">
+      {connectedProviders.length > 0 && (
+        <div className="flex flex-col rounded-lg border">
+          <div className="px-5 pt-4 pb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Connected
+            </p>
+          </div>
+          {connectedProviders.map((provider, i) => (
+            <div key={provider.id} className={i > 0 ? 'border-t' : ''}>
+              <ProviderRow
+                provider={provider}
+                isConnected
+                defaultModel={providers.default[provider.id]}
+                authMethods={authMethods[provider.id] ?? []}
+                client={client}
+                baseUrl={baseUrl}
+                onRefresh={refetch}
+              />
             </div>
-            {connectedProviders.map((provider, i) => (
-              <div key={provider.id}>
-                {i > 0 && <Separator />}
-                <ProviderRow
-                  provider={provider}
-                  isConnected
-                  defaultModel={providers.default[provider.id]}
-                  authMethods={authMethods[provider.id] ?? []}
-                  client={client}
-                  baseUrl={baseUrl}
-                  onRefresh={refetch}
-                />
-              </div>
-            ))}
-          </>
-        )}
+          ))}
+        </div>
+      )}
 
-        {connectedProviders.length > 0 && availableProviders.length > 0 && (
-          <Separator className="my-3" />
-        )}
-
-        {availableProviders.length > 0 && (
-          <>
-            <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+      {availableProviders.length > 0 && (
+        <div className="flex flex-col rounded-lg border">
+          <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Available
-            </div>
-            <div className="relative mb-3">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            </p>
+          </div>
+          <div className="px-5 pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search providers..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-8"
+                className="h-11 pl-10 text-sm"
               />
             </div>
-            {filteredAvailable.map((provider, i) => (
-              <div key={provider.id}>
-                {i > 0 && <Separator />}
-                <ProviderRow
-                  provider={provider}
-                  isConnected={false}
-                  authMethods={authMethods[provider.id] ?? []}
-                  client={client}
-                  baseUrl={baseUrl}
-                  onRefresh={refetch}
-                />
-              </div>
-            ))}
-            {filteredAvailable.length === 0 && search.trim() && (
-              <p className="py-3 text-center text-sm text-muted-foreground">
-                No providers matching &ldquo;{search}&rdquo;
-              </p>
-            )}
-          </>
-        )}
+          </div>
+          {filteredAvailable.map((provider, i) => (
+            <div key={provider.id} className={i > 0 ? 'border-t' : ''}>
+              <ProviderRow
+                provider={provider}
+                isConnected={false}
+                authMethods={authMethods[provider.id] ?? []}
+                client={client}
+                baseUrl={baseUrl}
+                onRefresh={refetch}
+              />
+            </div>
+          ))}
+          {filteredAvailable.length === 0 && search.trim() && (
+            <p className="px-5 py-4 text-center text-sm text-muted-foreground">
+              No providers matching &ldquo;{search}&rdquo;
+            </p>
+          )}
+        </div>
+      )}
 
-        {providers.all.length === 0 && (
-          <p className="text-sm text-muted-foreground">No providers available.</p>
-        )}
-      </CardContent>
-    </Card>
+      {providers.all.length === 0 && (
+        <p className="text-sm text-muted-foreground">No providers available.</p>
+      )}
+    </div>
   );
 }

@@ -49,10 +49,10 @@ export function ProviderRow({
 
   return (
     <>
-      <div className="flex items-center justify-between py-3">
+      <div className="flex items-center justify-between px-5 py-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium">{provider.name}</span>
+            <span className="text-base font-medium">{provider.name}</span>
             <Badge variant={isConnected ? 'default' : 'outline'}>
               {isConnected ? (
                 <span className="flex items-center gap-1">
@@ -64,7 +64,7 @@ export function ProviderRow({
               )}
             </Badge>
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
+          <div className="mt-1 text-sm text-muted-foreground">
             {isConnected && defaultModelName && <span>Default: {defaultModelName}</span>}
             {isConnected && defaultModelName && modelCount > 0 && <span> · </span>}
             {modelCount > 0 && (
@@ -76,28 +76,36 @@ export function ProviderRow({
         </div>
         <div>
           {isConnected ? (
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={() => setPingOpen(true)}>
-                <Zap className="mr-1 h-3 w-3" />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="h-10 px-4 text-sm"
+                onClick={() => setPingOpen(true)}
+              >
+                <Zap className="mr-1.5 h-4 w-4" />
                 Ping
               </Button>
               <Button
                 variant="outline"
-                size="sm"
+                className="h-10 px-4 text-sm"
                 onClick={() => void handleDisconnect()}
                 disabled={disconnecting}
               >
                 {disconnecting ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
-                  <Unplug className="mr-1 h-3 w-3" />
+                  <Unplug className="mr-1.5 h-4 w-4" />
                 )}
                 Disconnect
               </Button>
             </div>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-              <Plug className="mr-1 h-3 w-3" />
+            <Button
+              variant="outline"
+              className="h-10 px-4 text-sm"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plug className="mr-1.5 h-4 w-4" />
               Connect
             </Button>
           )}
