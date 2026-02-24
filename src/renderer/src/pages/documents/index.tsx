@@ -67,9 +67,9 @@ const SIZE_CATEGORIES: SizeCategory[] = [
       { name: 'A4', width: 210, height: 297, unit: 'mm' },
       { name: 'A3', width: 297, height: 420, unit: 'mm' },
       { name: 'A5', width: 148, height: 210, unit: 'mm' },
-      { name: 'Letter', width: 216, height: 279, unit: 'mm' },
-      { name: 'Legal', width: 216, height: 356, unit: 'mm' },
-      { name: 'Tabloid', width: 279, height: 432, unit: 'mm' },
+      { name: 'Letter', width: 215.9, height: 279.4, unit: 'mm' },
+      { name: 'Legal', width: 215.9, height: 355.6, unit: 'mm' },
+      { name: 'Tabloid', width: 279.4, height: 431.8, unit: 'mm' },
     ],
   },
   {
@@ -78,9 +78,18 @@ const SIZE_CATEGORIES: SizeCategory[] = [
       { name: 'Instagram Post', width: 1080, height: 1080, unit: 'px' },
       { name: 'Instagram Story', width: 1080, height: 1920, unit: 'px' },
       { name: 'Facebook Post', width: 1200, height: 630, unit: 'px' },
+      { name: 'Facebook Cover', width: 820, height: 312, unit: 'px' },
       { name: 'Twitter/X Post', width: 1200, height: 675, unit: 'px' },
+      { name: 'Twitter/X Header', width: 1500, height: 500, unit: 'px' },
       { name: 'LinkedIn Banner', width: 1584, height: 396, unit: 'px' },
+      { name: 'Pinterest Pin', width: 1000, height: 1500, unit: 'px' },
+    ],
+  },
+  {
+    label: 'Video',
+    sizes: [
       { name: 'YouTube Thumbnail', width: 1280, height: 720, unit: 'px' },
+      { name: 'YouTube Channel Art', width: 2560, height: 1440, unit: 'px' },
     ],
   },
   {
@@ -88,6 +97,24 @@ const SIZE_CATEGORIES: SizeCategory[] = [
     sizes: [
       { name: 'Slide 16:9', width: 1920, height: 1080, unit: 'px' },
       { name: 'Slide 4:3', width: 1024, height: 768, unit: 'px' },
+    ],
+  },
+  {
+    label: 'Ads & Display',
+    sizes: [
+      { name: 'Leaderboard', width: 728, height: 90, unit: 'px' },
+      { name: 'Medium Rectangle', width: 300, height: 250, unit: 'px' },
+      { name: 'Wide Skyscraper', width: 160, height: 600, unit: 'px' },
+      { name: 'Facebook Ad', width: 1200, height: 628, unit: 'px' },
+    ],
+  },
+  {
+    label: 'Marketing',
+    sizes: [
+      { name: 'Logo', width: 500, height: 500, unit: 'px' },
+      { name: 'Email Header', width: 600, height: 200, unit: 'px' },
+      { name: 'Blog Banner', width: 1200, height: 600, unit: 'px' },
+      { name: 'Infographic', width: 800, height: 2000, unit: 'px' },
     ],
   },
 ];
@@ -164,6 +191,9 @@ export function DocumentsPage({
   const [newTitle, setNewTitle] = useState('');
   const [newSize, setNewSize] = useState('A4');
   const [sizeCategory, setSizeCategory] = useState(SIZE_CATEGORIES[0].label);
+  const [customWidth, setCustomWidth] = useState('1080');
+  const [customHeight, setCustomHeight] = useState('1080');
+  const [customUnit, setCustomUnit] = useState<'px' | 'mm'>('px');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -197,7 +227,11 @@ export function DocumentsPage({
     setIsCreating(true);
     setCreateError(null);
     try {
-      const body: Record<string, string> = { title: newTitle.trim(), size: newSize };
+      const size =
+        newSize === 'Custom'
+          ? { width: Number(customWidth), height: Number(customHeight), unit: customUnit }
+          : newSize;
+      const body: Record<string, unknown> = { title: newTitle.trim(), size };
       // Auto-assign to current folder when creating from inside one.
       if (currentFolder) body.folder = currentFolder;
       const res = await fetch(`${serverUrl}/api/documents`, {
@@ -350,11 +384,7 @@ export function DocumentsPage({
               New Folder
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={onCloseWorkspace}
-            className="h-10 px-4 text-sm"
-          >
+          <Button variant="outline" onClick={onCloseWorkspace} className="h-10 px-4 text-sm">
             <LogOut className="mr-1.5 h-4 w-4" />
             Exit
           </Button>
@@ -520,23 +550,101 @@ export function DocumentsPage({
                   {cat.label}
                 </button>
               ))}
+              <button
+                type="button"
+                className={cn(
+                  'rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
+                  sizeCategory === 'Custom'
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                )}
+                onClick={() => {
+                  setSizeCategory('Custom');
+                  setNewSize('Custom');
+                }}
+              >
+                Custom
+              </button>
             </nav>
             <div className="flex-1 p-5">
-              {SIZE_CATEGORIES.filter((cat) => cat.label === sizeCategory).map((cat) => (
-                <div
-                  key={cat.label}
-                  className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-                >
-                  {cat.sizes.map((size) => (
-                    <SizeCard
-                      key={size.name}
-                      size={size}
-                      isSelected={newSize === size.name}
-                      onSelect={() => setNewSize(size.name)}
-                    />
-                  ))}
+              {sizeCategory === 'Custom' ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="custom-w" className="text-sm text-muted-foreground">
+                        Width
+                      </label>
+                      <Input
+                        id="custom-w"
+                        type="number"
+                        min={1}
+                        value={customWidth}
+                        onChange={(e) => setCustomWidth(e.target.value)}
+                        className="h-10 w-32 px-3 text-base"
+                      />
+                    </div>
+                    <span className="mt-6 text-muted-foreground">×</span>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="custom-h" className="text-sm text-muted-foreground">
+                        Height
+                      </label>
+                      <Input
+                        id="custom-h"
+                        type="number"
+                        min={1}
+                        value={customHeight}
+                        onChange={(e) => setCustomHeight(e.target.value)}
+                        className="h-10 w-32 px-3 text-base"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-sm text-muted-foreground">Unit</span>
+                      <div className="flex overflow-hidden rounded-md border">
+                        <button
+                          type="button"
+                          className={cn(
+                            'px-3 py-2 text-sm font-medium transition-colors',
+                            customUnit === 'px'
+                              ? 'bg-muted text-foreground'
+                              : 'text-muted-foreground hover:bg-muted/50',
+                          )}
+                          onClick={() => setCustomUnit('px')}
+                        >
+                          px
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(
+                            'border-l px-3 py-2 text-sm font-medium transition-colors',
+                            customUnit === 'mm'
+                              ? 'bg-muted text-foreground'
+                              : 'text-muted-foreground hover:bg-muted/50',
+                          )}
+                          onClick={() => setCustomUnit('mm')}
+                        >
+                          mm
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                SIZE_CATEGORIES.filter((cat) => cat.label === sizeCategory).map((cat) => (
+                  <div
+                    key={cat.label}
+                    className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                  >
+                    {cat.sizes.map((size) => (
+                      <SizeCard
+                        key={size.name}
+                        size={size}
+                        isSelected={newSize === size.name}
+                        onSelect={() => setNewSize(size.name)}
+                      />
+                    ))}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -549,7 +657,11 @@ export function DocumentsPage({
             </DialogClose>
             <Button
               onClick={() => void handleCreate()}
-              disabled={isCreating || !newTitle.trim()}
+              disabled={
+                isCreating ||
+                !newTitle.trim() ||
+                (newSize === 'Custom' && (Number(customWidth) <= 0 || Number(customHeight) <= 0))
+              }
               className="h-11"
             >
               {isCreating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
@@ -658,17 +770,27 @@ function SizeCard({
       )}
       onClick={onSelect}
     >
-      <div
-        className="flex w-full items-center justify-center"
-        style={{ height: SIZE_CARD_MAX_H }}
-      >
+      <div className="flex w-full items-center justify-center" style={{ height: SIZE_CARD_MAX_H }}>
         <div
           className={cn(
-            'max-w-full rounded-sm border-2',
+            'flex max-w-full items-center justify-center overflow-hidden rounded-sm border-2',
             isSelected ? 'border-primary bg-primary/15' : 'border-muted-foreground/30 bg-muted',
           )}
-          style={{ aspectRatio: `${size.width} / ${size.height}`, height: '100%', maxHeight: SIZE_CARD_MAX_H }}
-        />
+          style={{
+            aspectRatio: `${size.width} / ${size.height}`,
+            height: '100%',
+            maxHeight: SIZE_CARD_MAX_H,
+          }}
+        >
+          <span
+            className={cn(
+              'truncate px-1 text-[9px] font-medium leading-none',
+              isSelected ? 'text-primary' : 'text-muted-foreground/60',
+            )}
+          >
+            {size.name}
+          </span>
+        </div>
       </div>
       <div className="flex flex-col items-center gap-0.5">
         <p className={cn('text-base leading-tight', isSelected ? 'font-semibold' : 'font-medium')}>
@@ -883,9 +1005,9 @@ function DesignSystemCard({
     ? designSystem.colors.palettes.reduce((sum, p) => sum + p.shades.length, 0)
     : 0;
   const families = designSystem?.typography.families.length ?? 0;
-  const previewPalette = designSystem?.colors.palettes.find(
-    (p) => p.name.toLowerCase() === 'primary',
-  ) ?? designSystem?.colors.palettes[0];
+  const previewPalette =
+    designSystem?.colors.palettes.find((p) => p.name.toLowerCase() === 'primary') ??
+    designSystem?.colors.palettes[0];
   const previewShades = previewPalette?.shades.slice(0, 8) ?? [];
 
   return (
