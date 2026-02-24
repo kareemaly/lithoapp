@@ -227,7 +227,7 @@ export function WorkspacesPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sorted.map((ws) => {
           const isActive = activeInfo.workspacePath === ws.path;
           const isSelecting = selectingPath === ws.path;
@@ -245,52 +245,54 @@ export function WorkspacesPage({
                 }
               }}
               className={cn(
-                'group flex cursor-pointer flex-col rounded-lg border p-4 text-left transition-colors hover:bg-muted/50',
+                'group flex cursor-pointer flex-col rounded-lg border p-5 text-left transition-colors hover:bg-muted/50',
                 isActive ? 'border-forge/40 bg-forge/5' : 'border-border',
               )}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 {isSelecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
                 ) : (
                   <FolderOpen
-                    className={cn('h-4 w-4', isActive ? 'text-forge' : 'text-muted-foreground')}
+                    className={cn(
+                      'h-5 w-5 shrink-0',
+                      isActive ? 'text-forge' : 'text-muted-foreground',
+                    )}
                   />
                 )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="rounded p-0.5 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
-                    >
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => confirmRemove(e, ws.path)}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove from list
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <span className="min-w-0 truncate text-base font-semibold">{ws.name}</span>
+                {isActive && (
+                  <Badge className="bg-forge/15 text-forge border-forge/30 shrink-0 text-xs">
+                    Active
+                  </Badge>
+                )}
+                <div className="ml-auto shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="rounded p-0.5 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+                      >
+                        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => confirmRemove(e, ws.path)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove from list
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
 
-              <div className="mt-3 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold">{ws.name}</span>
-                  {isActive && (
-                    <Badge className="bg-forge/15 text-forge border-forge/30 text-[11px] leading-none">
-                      Active
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <FileText className="h-3 w-3" />
-                    {docCount} {docCount === 1 ? 'document' : 'documents'}
-                  </span>
-                  <span>{formatDistanceToNow(new Date(ws.lastOpened), { addSuffix: true })}</span>
-                </div>
+              <div className="mt-3 flex items-center gap-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  {docCount} {docCount === 1 ? 'document' : 'documents'}
+                </span>
+                <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/50" />
+                <span>{formatDistanceToNow(new Date(ws.lastOpened), { addSuffix: true })}</span>
               </div>
             </button>
           );
