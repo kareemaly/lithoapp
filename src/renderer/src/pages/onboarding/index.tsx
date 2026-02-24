@@ -1,8 +1,19 @@
-import { ArrowRight, Loader2, Monitor, Moon, Sun } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Monitor,
+  Moon,
+  RefreshCw,
+  Sun,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useOpencode } from '@/hooks/use-opencode';
 import { cn } from '@/lib/utils';
 import { ProviderPicker } from './provider-picker';
@@ -88,7 +99,7 @@ function ThemeSwitcher(): React.JSX.Element {
 }
 
 interface OnboardingPageProps {
-  onComplete: (name: string, email: string) => void;
+  onComplete: (name: string, email: string, telemetryEnabled: boolean) => Promise<void>;
 }
 
 function LithoLogo({ className }: { className?: string }): React.JSX.Element {
@@ -118,17 +129,19 @@ function LithoLogo({ className }: { className?: string }): React.JSX.Element {
 }
 
 const FEATURES = [
-  'React + Tailwind document components',
-  'AI agents that write and edit code',
-  'Export to PDF across 26 formats',
+  'Build a complete brand identity',
+  'Create for print and digital',
+  'One click to PDF, PNG, or JPG',
 ];
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.Element {
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
   const [totalModels, setTotalModels] = useState(0);
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const { client, status } = useOpencode();
 
@@ -144,8 +157,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
     if (validateStep1()) setStep(2);
   }
 
-  function handleFinish(): void {
-    onComplete(name.trim(), email.trim());
+  async function handleFinish(): Promise<void> {
+    setIsFinishing(true);
+    try {
+      await onComplete(name.trim(), email.trim(), telemetryEnabled);
+    } catch {
+      toast.error('Failed to save your profile. Please try again.');
+      setIsFinishing(false);
+    }
   }
 
   return (
@@ -177,24 +196,24 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
 
         {/* Content */}
         <div className="relative flex flex-col items-center gap-8 text-center">
-          <LithoLogo className="h-14 w-auto" />
+          <LithoLogo className="h-16 w-auto" />
 
           <div className="flex flex-col gap-2">
-            <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">
               Litho
             </h2>
-            <p className="max-w-[180px] text-sm leading-relaxed text-muted-foreground">
-              The AI-powered document studio for your desktop.
+            <p className="text-base leading-relaxed text-muted-foreground">
+              Describe it. Design it. Export it.
             </p>
           </div>
 
-          <ul className="flex flex-col gap-3 text-left">
+          <ul className="flex flex-col gap-3.5 text-left">
             {FEATURES.map((f) => (
               <li
                 key={f}
-                className="flex items-start gap-2.5 text-xs text-stone-500 dark:text-stone-400"
+                className="flex items-start gap-2.5 text-sm text-stone-500 dark:text-stone-400"
               >
-                <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-forge" />
+                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-forge" />
                 {f}
               </li>
             ))}
@@ -214,11 +233,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
         </div>
 
         {/* Step progress */}
-        <div className="mb-10 flex gap-1.5">
-          <div className="h-0.5 w-8 rounded-full bg-forge" />
+        <div className="mb-10 flex gap-2">
+          <div className="h-1 w-10 rounded-full bg-forge" />
           <div
             className={cn(
-              'h-0.5 w-8 rounded-full transition-colors duration-300',
+              'h-1 w-10 rounded-full transition-colors duration-300',
               step === 2 ? 'bg-forge' : 'bg-stone-300 dark:bg-stone-700',
             )}
           />
@@ -226,37 +245,29 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
 
         {step === 1 && (
           <div className="flex flex-col gap-8">
-            <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-                Welcome to Litho
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Tell us a bit about yourself to get started.
-              </p>
-            </div>
+            <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
+              Welcome to Litho
+            </h1>
 
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="onb-name">Your name</Label>
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="onb-name" className="text-base">
+                  Your name
+                </Label>
                 <Input
                   id="onb-name"
                   placeholder="Ada Lovelace"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
+                  className="h-12 px-4 text-base"
                   autoFocus
                 />
-                {errors.name ? (
-                  <p className="text-xs text-destructive">{errors.name}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Used by AI agents to address you by name.
-                  </p>
-                )}
+                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="onb-email">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="onb-email" className="text-base">
                   Email <span className="font-normal text-muted-foreground">(optional)</span>
                 </Label>
                 <Input
@@ -266,18 +277,27 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
+                  className="h-12 px-4 text-base"
                 />
-                {errors.email ? (
-                  <p className="text-xs text-destructive">{errors.email}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    For crash reports and product updates.
-                  </p>
-                )}
+                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                <div className="flex flex-col gap-0.5">
+                  <Label htmlFor="onb-telemetry" className="text-base font-medium">
+                    Help improve Litho
+                  </Label>
+                  <p className="text-sm text-muted-foreground">Send anonymous crash reports.</p>
+                </div>
+                <Switch
+                  id="onb-telemetry"
+                  checked={telemetryEnabled}
+                  onCheckedChange={setTelemetryEnabled}
+                />
               </div>
             </div>
 
-            <Button onClick={handleContinue} className="w-full">
+            <Button onClick={handleContinue} className="h-12 w-full text-base">
               Continue
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
@@ -287,29 +307,63 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
         {step === 2 && (
           <div className="flex min-h-0 flex-1 flex-col gap-6">
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-                Connect AI Providers
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="mb-3 flex items-center gap-1 text-base text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+              <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
+                Connect AI
               </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Powered by <span className="font-medium text-foreground">opencode.ai</span> — free
-                models included. Add more anytime from Settings.
+              <p className="mt-2 text-base text-muted-foreground">
+                Free models included. Add your own anytime in Settings.
               </p>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {status !== 'connected' || !client ? (
+              {status === 'error' ? (
+                <div className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-5">
+                  <div className="flex items-center gap-2 text-base text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    Couldn&apos;t connect to AI
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    You can retry or skip this and set it up later in Settings.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-fit"
+                    onClick={() => void window.litho.opencode.restart()}
+                  >
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Retry
+                  </Button>
+                </div>
+              ) : status !== 'connected' || !client ? (
                 <div className="flex items-center gap-2.5 py-8 text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  <span className="text-sm">Connecting to AI server...</span>
+                  <Loader2 className="size-5 animate-spin" />
+                  <span className="text-base">Connecting to AI...</span>
                 </div>
               ) : (
                 <ProviderPicker client={client} onModelsChange={setTotalModels} />
               )}
             </div>
 
-            <Button onClick={handleFinish} className="w-full">
-              {totalModels > 0 ? `Start with ${totalModels} models` : 'Start using Litho'}
-              <ArrowRight className="ml-1.5 h-4 w-4" />
+            <Button
+              onClick={() => void handleFinish()}
+              disabled={isFinishing}
+              className="h-12 w-full text-base"
+            >
+              {isFinishing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+              {isFinishing
+                ? 'Setting up...'
+                : totalModels > 0
+                  ? `Start with ${totalModels} models`
+                  : 'Start using Litho'}
+              {!isFinishing && <ArrowRight className="ml-1.5 h-4 w-4" />}
             </Button>
           </div>
         )}

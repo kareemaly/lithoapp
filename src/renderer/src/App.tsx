@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { useWorkspaceManifest } from '@/hooks/use-workspace-manifest';
+import { cn } from '@/lib/utils';
 import { AssetsPage } from './pages/assets';
 import { DesignSystemDocPage } from './pages/design-system-doc';
 import { DocumentPage } from './pages/document';
@@ -64,10 +65,18 @@ function App(): React.JSX.Element {
     })();
   }, []);
 
-  const handleOnboardingComplete = useCallback(async (name: string, email: string) => {
-    await window.litho.preferences.setUserProfile(name, email);
-    setUserProfile({ name, email });
-  }, []);
+  const [isOnboardingFading, setIsOnboardingFading] = useState(false);
+
+  const handleOnboardingComplete = useCallback(
+    async (name: string, email: string, telemetryEnabled: boolean) => {
+      await window.litho.preferences.setUserProfile(name, email);
+      await window.litho.telemetry.setEnabled(telemetryEnabled);
+      setIsOnboardingFading(true);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setUserProfile({ name, email });
+    },
+    [],
+  );
 
   // Guard: redirect away from workspace pages if the server is no longer running
   useEffect(() => {
@@ -108,7 +117,12 @@ function App(): React.JSX.Element {
   // First launch — show onboarding
   if (!userProfile.name) {
     return (
-      <div className="flex h-screen flex-col">
+      <div
+        className={cn(
+          'flex h-screen flex-col transition-opacity duration-300',
+          isOnboardingFading ? 'opacity-0' : 'opacity-100',
+        )}
+      >
         <div
           className="h-10 w-full shrink-0"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}

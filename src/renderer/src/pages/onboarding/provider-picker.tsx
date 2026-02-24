@@ -2,7 +2,6 @@ import { AlertCircle, Check, Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { SearchInput } from '@/components/ui/search-input';
 import { useProviderList } from '@/hooks/use-provider-list';
 import type { OpencodeClient, ProviderInfo } from '@/lib/opencode-client-types';
 import { cn } from '@/lib/utils';
@@ -20,22 +19,22 @@ function ZenCard({
 }): React.JSX.Element {
   const modelNames = Object.values(provider.models).map((m) => m.name);
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
+    <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{provider.name}</span>
-          <Badge variant="outline" className="border-primary/40 px-1.5 text-[10px] text-primary">
+          <span className="text-base font-medium">{provider.name}</span>
+          <Badge variant="outline" className="border-primary/40 px-1.5 text-xs text-primary">
             Free
           </Badge>
         </div>
         {isConnected && (
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Check className="h-3 w-3 text-emerald-500" />
+          <span className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-emerald-500" />
             Active
           </span>
         )}
       </div>
-      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
         {modelNames.join(' · ')}
       </p>
     </div>
@@ -65,53 +64,23 @@ function FeaturedCard({
             }
       }
       className={cn(
-        'flex flex-col gap-1 rounded-lg border p-3 transition-colors',
+        'flex flex-col gap-1.5 rounded-lg border p-4 transition-colors',
         isConnected
           ? 'border-primary/40 bg-primary/5'
           : 'cursor-pointer border-border hover:border-primary/50',
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-medium leading-tight">{provider.name}</span>
-        {isConnected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
+        <span className="text-base font-medium leading-tight">{provider.name}</span>
+        {isConnected && <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {modelCount} model{modelCount !== 1 ? 's' : ''}
       </p>
       {isConnected ? (
-        <p className="mt-0.5 text-[11px] font-medium text-primary">Connected</p>
+        <p className="text-sm font-medium text-primary">Connected</p>
       ) : (
-        <p className="mt-0.5 text-[11px] text-muted-foreground">Connect →</p>
-      )}
-    </div>
-  );
-}
-
-function CompactRow({
-  provider,
-  isConnected,
-  onConnect,
-}: {
-  provider: ProviderInfo;
-  isConnected: boolean;
-  onConnect: () => void;
-}): React.JSX.Element {
-  return (
-    <div className="flex items-center justify-between border-b border-border/50 py-2 last:border-0">
-      <span className="text-sm">{provider.name}</span>
-      {isConnected ? (
-        <span className="flex items-center gap-1 text-[11px] text-primary">
-          <Check className="h-3 w-3" />
-          Connected
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={onConnect}
-          className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground"
-        >
-          Connect →
-        </button>
+        <p className="text-sm text-muted-foreground">Connect →</p>
       )}
     </div>
   );
@@ -126,7 +95,6 @@ export function ProviderPicker({
 }): React.JSX.Element {
   const { providers, authMethods, loading, error, refetch } = useProviderList(client);
   const [dialogProvider, setDialogProvider] = useState<ProviderInfo | null>(null);
-  const [search, setSearch] = useState('');
 
   const zenProvider = useMemo(
     () => providers?.all.find((p) => p.id === ZEN_ID) ?? null,
@@ -138,18 +106,10 @@ export function ProviderPicker({
     [providers],
   );
 
-  const otherProviders = useMemo(
-    () => providers?.all.filter((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)) ?? [],
+  const otherCount = useMemo(
+    () => providers?.all.filter((p) => p.id !== ZEN_ID && !FEATURED_IDS.includes(p.id)).length ?? 0,
     [providers],
   );
-
-  const filteredOther = useMemo(() => {
-    if (!search.trim()) return otherProviders;
-    const q = search.toLowerCase();
-    return otherProviders.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q),
-    );
-  }, [otherProviders, search]);
 
   const totalModels = useMemo(() => {
     if (!providers) return 0;
@@ -165,8 +125,8 @@ export function ProviderPicker({
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
+      <div className="flex items-center gap-2.5 text-base text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
         Loading providers...
       </div>
     );
@@ -174,13 +134,13 @@ export function ProviderPicker({
 
   if (error || !providers) {
     return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-sm text-destructive">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-base text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error || 'Failed to load providers'}
         </div>
-        <Button variant="outline" size="sm" onClick={refetch}>
-          <RefreshCw className="mr-1 h-3 w-3" />
+        <Button variant="outline" onClick={refetch}>
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
           Retry
         </Button>
       </div>
@@ -190,10 +150,10 @@ export function ProviderPicker({
   const isConnected = (id: string): boolean => providers.connected.includes(id);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       {zenProvider && (
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Included with Litho
           </p>
           <ZenCard provider={zenProvider} isConnected={isConnected(ZEN_ID)} />
@@ -202,10 +162,10 @@ export function ProviderPicker({
 
       {featuredProviders.length > 0 && (
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Popular providers
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {featuredProviders.map((provider) => (
               <FeaturedCard
                 key={provider.id}
@@ -218,31 +178,10 @@ export function ProviderPicker({
         </div>
       )}
 
-      {otherProviders.length > 0 && (
-        <div>
-          <SearchInput
-            placeholder={`Search ${otherProviders.length}+ providers...`}
-            value={search}
-            onChange={setSearch}
-            size="sm"
-            className="mb-2"
-          />
-          <div>
-            {filteredOther.map((provider) => (
-              <CompactRow
-                key={provider.id}
-                provider={provider}
-                isConnected={isConnected(provider.id)}
-                onConnect={() => setDialogProvider(provider)}
-              />
-            ))}
-            {filteredOther.length === 0 && search.trim() && (
-              <p className="py-4 text-center text-xs text-muted-foreground">
-                No providers matching &ldquo;{search}&rdquo;
-              </p>
-            )}
-          </div>
-        </div>
+      {otherCount > 0 && (
+        <p className="text-base text-muted-foreground">
+          {otherCount}+ more providers available in Settings.
+        </p>
       )}
 
       {dialogProvider && (
