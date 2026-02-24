@@ -47,25 +47,25 @@ export function WorkspaceTransitionPage({
 
   if (isError && mode === 'loading') {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4">
+      <div className="flex h-full flex-col items-center justify-center gap-5">
         <AlertCircle className="h-10 w-10 text-destructive" />
-        <div className="space-y-1.5 text-center">
-          <h2 className="font-display text-xl font-semibold">Failed to start workspace</h2>
-          {workspaceName && <p className="text-sm font-medium text-forge">{workspaceName}</p>}
-          <p className="text-sm text-muted-foreground">
-            The workspace server could not be started.
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <h2 className="font-display text-2xl font-bold tracking-tight">Something went wrong</h2>
+          {workspaceName && <p className="text-base font-medium text-forge">{workspaceName}</p>}
+          <p className="text-base text-muted-foreground">
+            We couldn&apos;t open this project. Try again or go back.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {onRestart && (
-            <Button size="sm" onClick={onRestart}>
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              Restart
+            <Button onClick={onRestart} className="h-11 px-5 text-base">
+              <RefreshCw className="mr-1.5 h-4 w-4" />
+              Try Again
             </Button>
           )}
           {onBack && (
-            <Button variant="outline" size="sm" onClick={onBack}>
-              Back to Workspaces
+            <Button variant="outline" onClick={onBack} className="h-11 px-5 text-base">
+              Back to Projects
             </Button>
           )}
         </div>
@@ -73,9 +73,12 @@ export function WorkspaceTransitionPage({
     );
   }
 
-  const title = mode === 'loading' ? 'Preparing your workspace' : 'Closing workspace';
-  const subtitle =
-    mode === 'loading' ? 'Setting things up — just a moment...' : 'Wrapping up — just a moment...';
+  const title =
+    mode === 'loading'
+      ? workspaceName
+        ? `Opening ${workspaceName}...`
+        : 'Opening...'
+      : 'Closing...';
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6">
@@ -85,11 +88,7 @@ export function WorkspaceTransitionPage({
         <Loader2 className="h-10 w-10 animate-spin text-forge" />
       </div>
 
-      <div className="space-y-1.5 text-center">
-        <h2 className="font-display text-xl font-semibold">{title}</h2>
-        {workspaceName && <p className="text-sm font-medium text-forge">{workspaceName}</p>}
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
-      </div>
+      <h2 className="font-display text-2xl font-bold tracking-tight">{title}</h2>
     </div>
   );
 }

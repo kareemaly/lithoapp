@@ -1,14 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
-import {
-  ArrowDownAZ,
-  Clock,
-  FolderOpen,
-  FolderPlus,
-  Loader2,
-  MoreHorizontal,
-  Trash2,
-} from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { FileText, FolderOpen, Loader2, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -22,12 +14,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -38,24 +28,41 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { WorkspaceEntry, WorkspaceServerInfo } from '@/hooks/use-workspace';
-import { slugify } from '@/lib/slugify';
+import { cn } from '@/lib/utils';
+
+function useDocumentCounts(workspaces: WorkspaceEntry[]): Record<string, number> {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const paths = workspaces.map((ws) => ws.path);
+    if (paths.length === 0) return;
+
+    Promise.all(
+      paths.map(async (p) => {
+        try {
+          const count = await window.litho.workspace.getDocumentCount(p);
+          return [p, count] as const;
+        } catch {
+          return [p, 0] as const;
+        }
+      }),
+    ).then((results) => {
+      setCounts(Object.fromEntries(results));
+    });
+  }, [workspaces]);
+
+  return counts;
+}
 
 interface WorkspacesPageProps {
   workspaces: WorkspaceEntry[];
   activeInfo: WorkspaceServerInfo;
   onWorkspaceSelected: () => void;
   refreshWorkspaces: () => Promise<void>;
+  userName?: string;
 }
 
 export function WorkspacesPage({
@@ -63,6 +70,7 @@ export function WorkspacesPage({
   activeInfo,
   onWorkspaceSelected,
   refreshWorkspaces,
+  userName,
 }: WorkspacesPageProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -70,17 +78,16 @@ export function WorkspacesPage({
   const [isCreating, setIsCreating] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
   const [selectingPath, setSelectingPath] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent');
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
+  const docCounts = useDocumentCounts(workspaces);
 
-  const sorted = useMemo(() => {
-    if (sortBy === 'name') {
-      return [...workspaces].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    return [...workspaces].sort(
-      (a, b) => new Date(b.lastOpened).getTime() - new Date(a.lastOpened).getTime(),
-    );
-  }, [workspaces, sortBy]);
+  const sorted = useMemo(
+    () =>
+      [...workspaces].sort(
+        (a, b) => new Date(b.lastOpened).getTime() - new Date(a.lastOpened).getTime(),
+      ),
+    [workspaces],
+  );
 
   async function handleCreate(): Promise<void> {
     if (!newName.trim() || !newLocation) return;
@@ -94,7 +101,7 @@ export function WorkspacesPage({
       onWorkspaceSelected();
     } catch (err) {
       console.error('[workspaces] Create failed:', err);
-      toast.error('Failed to create workspace');
+      toast.error('Failed to create project');
     } finally {
       setIsCreating(false);
     }
@@ -110,7 +117,7 @@ export function WorkspacesPage({
       }
     } catch (err) {
       console.error('[workspaces] Open failed:', err);
-      toast.error('Failed to open workspace');
+      toast.error('Failed to open project');
     } finally {
       setIsOpening(false);
     }
@@ -124,7 +131,7 @@ export function WorkspacesPage({
       onWorkspaceSelected();
     } catch (err) {
       console.error('[workspaces] Select failed:', err);
-      toast.error('Failed to switch workspace');
+      toast.error('Failed to open project');
     } finally {
       setSelectingPath(null);
     }
@@ -143,52 +150,49 @@ export function WorkspacesPage({
       await refreshWorkspaces();
     } catch (err) {
       console.error('[workspaces] Remove failed:', err);
-      toast.error('Failed to remove workspace');
+      toast.error('Failed to remove project');
     }
   }
 
-  async function handleChooseDirectory(): Promise<void> {
-    const dir = await window.litho.workspace.chooseDirectory();
-    if (dir) setNewLocation(dir);
-  }
+  const firstName = userName?.split(' ')[0];
 
   if (workspaces.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FolderOpen />
-            </EmptyMedia>
-            <EmptyTitle>No workspaces</EmptyTitle>
-            <EmptyDescription>
-              Create a new workspace or open an existing one to get started.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <div className="flex gap-2">
-              <Button onClick={() => setCreateOpen(true)}>
-                <FolderPlus className="mr-1.5 h-4 w-4" />
-                Create Workspace
-              </Button>
-              <Button variant="outline" onClick={handleOpen} disabled={isOpening}>
-                {isOpening ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <FolderOpen className="mr-1.5 h-4 w-4" />
-                )}
-                Open Existing
-              </Button>
-            </div>
-          </EmptyContent>
-        </Empty>
+      <div className="flex h-full flex-col items-center justify-center gap-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+            {firstName ? `Welcome, ${firstName}` : 'Welcome to Litho'}
+          </h1>
+          <p className="text-base text-muted-foreground">
+            Create your first project to start designing.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button onClick={() => setCreateOpen(true)} className="h-11 px-5 text-base">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Project
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleOpen}
+            disabled={isOpening}
+            className="h-11 px-5 text-base"
+          >
+            {isOpening ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <FolderOpen className="mr-1.5 h-4 w-4" />
+            )}
+            Open Existing
+          </Button>
+        </div>
         <CreateDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
           name={newName}
           onNameChange={setNewName}
           location={newLocation}
-          onChooseDirectory={handleChooseDirectory}
+          onLocationChange={setNewLocation}
           onSubmit={handleCreate}
           isCreating={isCreating}
         />
@@ -197,94 +201,98 @@ export function WorkspacesPage({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-end justify-between">
+        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+          {firstName ? `Welcome back, ${firstName}` : 'Your Projects'}
+        </h1>
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Workspaces</h2>
+          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Project
+          </Button>
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSortBy(sortBy === 'recent' ? 'name' : 'recent')}
-            title={sortBy === 'recent' ? 'Sorted by recent' : 'Sorted by name'}
+            variant="outline"
+            onClick={handleOpen}
+            disabled={isOpening}
+            className="h-10 px-4 text-sm"
           >
-            {sortBy === 'recent' ? (
-              <Clock className="mr-1.5 h-3.5 w-3.5" />
-            ) : (
-              <ArrowDownAZ className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {sortBy === 'recent' ? 'Recent' : 'Name'}
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
-            Create
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleOpen} disabled={isOpening}>
             {isOpening ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
-              <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+              <FolderOpen className="mr-1.5 h-4 w-4" />
             )}
             Open Existing
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {sorted.map((ws) => {
           const isActive = activeInfo.workspacePath === ws.path;
           const isSelecting = selectingPath === ws.path;
+          const docCount = docCounts[ws.path] ?? 0;
 
           return (
-            <Card
+            <button
               key={ws.path}
-              className={`cursor-pointer transition-colors hover:bg-muted/50 ${isActive ? 'border-l-4 border-l-forge border-y-forge/30 border-r-forge/30 bg-forge/5' : ''}`}
+              type="button"
               onClick={() => {
                 if (isActive) {
                   onWorkspaceSelected();
                 } else {
-                  handleSelect(ws.path);
+                  void handleSelect(ws.path);
                 }
               }}
+              className={cn(
+                'group flex cursor-pointer flex-col rounded-lg border p-4 text-left transition-colors hover:bg-muted/50',
+                isActive ? 'border-forge/40 bg-forge/5' : 'border-border',
+              )}
             >
-              <CardContent className="flex items-center gap-3 py-3">
+              <div className="flex items-center justify-between">
                 {isSelecting ? (
-                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 ) : (
                   <FolderOpen
-                    className={`h-4 w-4 shrink-0 ${isActive ? 'text-forge' : 'text-muted-foreground'}`}
+                    className={cn('h-4 w-4', isActive ? 'text-forge' : 'text-muted-foreground')}
                   />
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{ws.name}</span>
-                    {isActive && (
-                      <Badge className="bg-forge/15 text-forge border-forge/30 text-xs">
-                        Active
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">{ws.path}</p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(ws.lastOpened), { addSuffix: true })}
-                </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon-sm">
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </Button>
+                    <button
+                      type="button"
+                      className="rounded p-0.5 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+                    >
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={(e) => confirmRemove(e, ws.path)}>
-                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      <Trash2 className="mr-2 h-4 w-4" />
                       Remove from list
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{ws.name}</span>
+                  {isActive && (
+                    <Badge className="bg-forge/15 text-forge border-forge/30 text-[11px] leading-none">
+                      Active
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    {docCount} {docCount === 1 ? 'document' : 'documents'}
+                  </span>
+                  <span>{formatDistanceToNow(new Date(ws.lastOpened), { addSuffix: true })}</span>
+                </div>
+              </div>
+            </button>
           );
         })}
       </div>
@@ -295,7 +303,7 @@ export function WorkspacesPage({
         name={newName}
         onNameChange={setNewName}
         location={newLocation}
-        onChooseDirectory={handleChooseDirectory}
+        onLocationChange={setNewLocation}
         onSubmit={handleCreate}
         isCreating={isCreating}
       />
@@ -306,11 +314,11 @@ export function WorkspacesPage({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove workspace?</AlertDialogTitle>
+            <AlertDialogTitle>Remove this project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This only removes &quot;
-              {workspaces.find((ws) => ws.path === removeConfirm)?.name ?? removeConfirm}
-              &quot; from this list. The folder and its files will remain on disk.
+              This removes &quot;
+              {workspaces.find((ws) => ws.path === removeConfirm)?.name ?? 'this project'}
+              &quot; from your list. Your files stay on your computer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -331,7 +339,7 @@ function CreateDialog({
   name,
   onNameChange,
   location,
-  onChooseDirectory,
+  onLocationChange,
   onSubmit,
   isCreating,
 }: {
@@ -340,58 +348,68 @@ function CreateDialog({
   name: string;
   onNameChange: (name: string) => void;
   location: string;
-  onChooseDirectory: () => void;
+  onLocationChange: (location: string) => void;
   onSubmit: () => void;
   isCreating: boolean;
 }): React.JSX.Element {
-  const slug = useMemo(() => slugify(name), [name]);
-  const fullPath = location && slug ? `${location}/${slug}` : '';
+  useEffect(() => {
+    if (!open) return;
+    if (location) return;
+    window.litho.workspace
+      .getDefaultLocation()
+      .then(onLocationChange)
+      .catch(() => {});
+  }, [open, location, onLocationChange]);
+
+  async function handleChooseDirectory(): Promise<void> {
+    const dir = await window.litho.workspace.chooseDirectory();
+    if (dir) onLocationChange(dir);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Workspace</DialogTitle>
-          <DialogDescription>
-            Create a new Litho workspace to organize your documents.
-          </DialogDescription>
+          <DialogTitle>New Project</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="ws-name">Name</Label>
+            <Label htmlFor="ws-name" className="text-base">
+              Name
+            </Label>
             <Input
               id="ws-name"
-              placeholder="My Workspace"
+              placeholder="My Brand"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && name.trim() && location) void onSubmit();
+              }}
+              className="h-11 px-4 text-base"
+              autoFocus
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Location</Label>
+            <Label className="text-base">Save to</Label>
             <div className="flex gap-2">
-              <Input
-                readOnly
-                placeholder="Choose a parent directory..."
-                value={location}
-                className="flex-1"
-              />
-              <Button variant="outline" onClick={onChooseDirectory}>
-                Browse
+              <Input readOnly value={location} className="h-11 flex-1 px-4 text-sm" />
+              <Button variant="outline" onClick={handleChooseDirectory} className="h-11">
+                Change
               </Button>
             </div>
           </div>
-          {fullPath && (
-            <p className="truncate text-xs text-muted-foreground">
-              Workspace will be created at{' '}
-              <span className="font-medium text-foreground">{fullPath}</span>
-            </p>
-          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline" className="h-11">
+              Cancel
+            </Button>
           </DialogClose>
-          <Button onClick={onSubmit} disabled={isCreating || !name.trim() || !location}>
+          <Button
+            onClick={onSubmit}
+            disabled={isCreating || !name.trim() || !location}
+            className="h-11"
+          >
             {isCreating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Create
           </Button>

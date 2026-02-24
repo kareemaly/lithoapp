@@ -1,6 +1,7 @@
-import { Files, Home, Images, LogOut, Palette, Settings2 } from 'lucide-react';
+import { Files, Home, Images, Loader2, LogOut, Palette, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { useWorkspaceManifest } from '@/hooks/use-workspace-manifest';
@@ -65,14 +66,22 @@ function App(): React.JSX.Element {
     })();
   }, []);
 
-  const [isOnboardingFading, setIsOnboardingFading] = useState(false);
+  const [onboardingPhase, setOnboardingPhase] = useState<
+    'active' | 'fading' | 'transition' | 'done'
+  >('active');
 
   const handleOnboardingComplete = useCallback(
     async (name: string, email: string, telemetryEnabled: boolean) => {
       await window.litho.preferences.setUserProfile(name, email);
       await window.litho.telemetry.setEnabled(telemetryEnabled);
-      setIsOnboardingFading(true);
+      // Phase 1: fade out onboarding
+      setOnboardingPhase('fading');
       await new Promise((resolve) => setTimeout(resolve, 300));
+      // Phase 2: show spinner transition
+      setOnboardingPhase('transition');
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Phase 3: reveal home screen
+      setOnboardingPhase('done');
       setUserProfile({ name, email });
     },
     [],
@@ -114,19 +123,35 @@ function App(): React.JSX.Element {
     );
   }
 
-  // First launch — show onboarding
+  // First launch — show onboarding or transition
   if (!userProfile.name) {
+    if (onboardingPhase === 'transition') {
+      return (
+        <div className="flex h-screen flex-col items-center justify-center gap-6">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute h-16 w-16 animate-ping rounded-full bg-forge/10" />
+            <Loader2 className="h-10 w-10 animate-spin text-forge" />
+          </div>
+          <h2 className="font-display text-2xl font-bold tracking-tight">Setting up...</h2>
+        </div>
+      );
+    }
+
     return (
       <div
         className={cn(
           'flex h-screen flex-col transition-opacity duration-300',
-          isOnboardingFading ? 'opacity-0' : 'opacity-100',
+          onboardingPhase === 'fading' ? 'opacity-0' : 'opacity-100',
         )}
       >
         <div
-          className="h-10 w-full shrink-0"
+          className="flex h-10 w-full shrink-0 items-center justify-end pr-4"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-        />
+        >
+          <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+            <ThemeSwitcher />
+          </div>
+        </div>
         <OnboardingPage onComplete={handleOnboardingComplete} />
       </div>
     );
@@ -149,7 +174,7 @@ function App(): React.JSX.Element {
         )}
 
         <nav
-          className="ml-auto flex gap-1"
+          className="ml-auto flex items-center gap-1"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
           {workspaceInfo.status !== 'stopped' ? (
@@ -212,6 +237,8 @@ function App(): React.JSX.Element {
               </Button>
             </>
           )}
+          <div className="mx-1 h-4 w-px bg-border" />
+          <ThemeSwitcher />
         </nav>
       </div>
 
@@ -225,6 +252,7 @@ function App(): React.JSX.Element {
             activeInfo={workspaceInfo}
             onWorkspaceSelected={() => setPage('workspace-loading')}
             refreshWorkspaces={refreshWorkspaces}
+            userName={userProfile.name ?? undefined}
           />
         )}
         {page === 'workspace-loading' && (

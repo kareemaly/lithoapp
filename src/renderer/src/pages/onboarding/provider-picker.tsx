@@ -34,9 +34,7 @@ function ZenCard({
           </span>
         )}
       </div>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-        {modelNames.join(' · ')}
-      </p>
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{modelNames.join(' · ')}</p>
     </div>
   );
 }

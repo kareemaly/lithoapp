@@ -1,14 +1,5 @@
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Loader2,
-  Monitor,
-  Moon,
-  RefreshCw,
-  Sun,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,86 +8,6 @@ import { Switch } from '@/components/ui/switch';
 import { useOpencode } from '@/hooks/use-opencode';
 import { cn } from '@/lib/utils';
 import { ProviderPicker } from './provider-picker';
-
-type Theme = 'system' | 'light' | 'dark';
-
-function applyTheme(theme: Theme): void {
-  const html = document.documentElement;
-  const isDark =
-    theme === 'dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  if (isDark) {
-    html.classList.add('dark');
-  } else {
-    html.classList.remove('dark');
-  }
-}
-
-function ThemeSwitcher(): React.JSX.Element {
-  const [theme, setTheme] = useState<Theme>('system');
-
-  useEffect(() => {
-    window.litho.preferences
-      .getTheme()
-      .then((saved) => {
-        setTheme(saved);
-        applyTheme(saved);
-      })
-      .catch(() => {
-        applyTheme('system');
-      });
-  }, []);
-
-  async function handleThemeChange(value: Theme): Promise<void> {
-    setTheme(value);
-    applyTheme(value);
-    await window.litho.preferences.setTheme(value);
-  }
-
-  return (
-    <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted/50 p-0.5">
-      <button
-        type="button"
-        onClick={() => handleThemeChange('system')}
-        className={cn(
-          'flex items-center justify-center rounded-full p-1.5 transition-colors',
-          theme === 'system'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
-        title="System"
-      >
-        <Monitor className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => handleThemeChange('light')}
-        className={cn(
-          'flex items-center justify-center rounded-full p-1.5 transition-colors',
-          theme === 'light'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
-        title="Light"
-      >
-        <Sun className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => handleThemeChange('dark')}
-        className={cn(
-          'flex items-center justify-center rounded-full p-1.5 transition-colors',
-          theme === 'dark'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
-        title="Dark"
-      >
-        <Moon className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}
 
 interface OnboardingPageProps {
   onComplete: (name: string, email: string, telemetryEnabled: boolean) => Promise<void>;
@@ -227,11 +138,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
 
       {/* ── Form panel ──────────────────────────────── */}
       <div className="relative flex flex-1 flex-col justify-center px-14 py-12">
-        {/* Theme switcher - top right */}
-        <div className="absolute right-6 top-6">
-          <ThemeSwitcher />
-        </div>
-
         {/* Step progress */}
         <div className="mb-10 flex gap-2">
           <div className="h-1 w-10 rounded-full bg-forge" />

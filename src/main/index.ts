@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
 import { slugify } from '@kareemaly/litho-workspace-server';
@@ -187,6 +188,14 @@ ipcMain.handle('workspace:remove', async (_event, workspacePath: string) => {
 ipcMain.handle('workspace:stop', async () => {
   setActiveWorkspacePath(null);
   await workspaceManager.stop();
+});
+
+ipcMain.handle('workspace:getDefaultLocation', () => join(homedir(), 'litho-workspaces'));
+
+ipcMain.handle('workspace:getDocumentCount', (_event, workspacePath: string) => {
+  const docsDir = join(workspacePath, 'documents');
+  if (!existsSync(docsDir)) return 0;
+  return readdirSync(docsDir, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
 });
 
 ipcMain.handle('workspace:chooseDirectory', async () => {
