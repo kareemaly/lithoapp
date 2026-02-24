@@ -75,6 +75,12 @@
     "vitest": "^4.0.18"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "electron"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "electron"
+    ],
+    "overrides": {
+      "@kareemaly/litho-workspace-server": "link:../litho-workspace-server"
+    }
   }
 }
