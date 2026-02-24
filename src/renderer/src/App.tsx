@@ -1,0 +1,284 @@
+import { Files, Home, Images, LogOut, Palette, Settings2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { useWorkspace } from '@/hooks/use-workspace';
+import { useWorkspaceManifest } from '@/hooks/use-workspace-manifest';
+import { AssetsPage } from './pages/assets';
+import { DesignSystemDocPage } from './pages/design-system-doc';
+import { DocumentPage } from './pages/document';
+import { DocumentsPage } from './pages/documents';
+import { OnboardingPage } from './pages/onboarding';
+import { SettingsV2Page } from './pages/settings-v2';
+import { WorkspaceTransitionPage } from './pages/workspace-transition';
+import { WorkspacesPage } from './pages/workspaces';
+
+type Page =
+  | 'workspaces'
+  | 'documents'
+  | 'document'
+  | 'design-system-doc'
+  | 'assets'
+  | 'settings'
+  | 'workspace-loading'
+  | 'workspace-closing';
+
+function App(): React.JSX.Element {
+  const [version, setVersion] = useState('');
+  const [page, setPage] = useState<Page>('workspaces');
+  const [activeDocSlug, setActiveDocSlug] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<{
+    name: string | null;
+    email: string | null;
+  } | null>(null);
+
+  const { info: workspaceInfo, workspaces, refreshWorkspaces } = useWorkspace();
+  const serverUrl = workspaceInfo.status === 'running' ? (workspaceInfo.url ?? null) : null;
+  const workspacePath = workspaceInfo.workspacePath ?? null;
+  const {
+    manifest,
+    loading: manifestLoading,
+    error: manifestError,
+    refetch: refetchManifest,
+  } = useWorkspaceManifest(serverUrl, workspaceInfo.workspacePath);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setVersion(await window.litho.app.getVersion());
+      } catch (err) {
+        console.error('[app] Failed to get version:', err);
+        toast.error('Failed to fetch app version');
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setUserProfile(await window.litho.preferences.getUserProfile());
+      } catch (err) {
+        console.error('[app] Failed to get user profile:', err);
+        setUserProfile({ name: null, email: null });
+      }
+    })();
+  }, []);
+
+  const handleOnboardingComplete = useCallback(async (name: string, email: string) => {
+    await window.litho.preferences.setUserProfile(name, email);
+    setUserProfile({ name, email });
+  }, []);
+
+  // Guard: redirect away from workspace pages if the server is no longer running
+  useEffect(() => {
+    const onWorkspacePage = ['documents', 'document', 'design-system-doc', 'assets'].includes(page);
+    if (onWorkspacePage && workspaceInfo.status === 'error') {
+      setPage('workspace-loading');
+    } else if (
+      onWorkspacePage &&
+      workspaceInfo.status !== 'running' &&
+      workspaceInfo.status !== 'starting'
+    ) {
+      setPage('workspaces');
+    }
+  }, [page, workspaceInfo.status]);
+
+  const handleCloseWorkspace = useCallback(async () => {
+    setPage('workspace-closing');
+    try {
+      await window.litho.workspace.stop();
+      await refreshWorkspaces();
+    } catch (err) {
+      console.error('[app] Failed to stop workspace:', err);
+      toast.error('Failed to close workspace');
+    }
+  }, [refreshWorkspaces]);
+
+  const activeDoc = activeDocSlug
+    ? (manifest?.documents.find((d) => d.slug === activeDocSlug) ?? null)
+    : null;
+
+  // Still loading user profile — render minimal drag region to avoid flash
+  if (userProfile === null) {
+    return (
+      <div className="h-10 w-full" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
+    );
+  }
+
+  // First launch — show onboarding
+  if (!userProfile.name) {
+    return (
+      <div className="flex h-screen flex-col">
+        <div
+          className="h-10 w-full shrink-0"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        />
+        <OnboardingPage onComplete={handleOnboardingComplete} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen flex-col">
+      {/* Title bar drag region */}
+      <div
+        className="flex h-10 shrink-0 items-center border-b border-border pl-[70px] pr-4"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
+        <span className="text-sm font-semibold">Litho</span>
+        {version && <span className="ml-2 text-xs text-muted-foreground">v{version}</span>}
+        {workspaceInfo.status !== 'stopped' && workspaceInfo.workspaceName && (
+          <>
+            <span className="mx-2 text-xs text-muted-foreground">/</span>
+            <span className="text-sm font-medium">{workspaceInfo.workspaceName}</span>
+          </>
+        )}
+
+        <nav
+          className="ml-auto flex gap-1"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
+          {workspaceInfo.status !== 'stopped' ? (
+            <>
+              <Button
+                variant={page === 'documents' || page === 'document' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('documents')}
+                disabled={workspaceInfo.status !== 'running'}
+              >
+                <Files className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={page === 'design-system-doc' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('design-system-doc')}
+                disabled={workspaceInfo.status !== 'running'}
+              >
+                <Palette className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={page === 'assets' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('assets')}
+                disabled={workspaceInfo.status !== 'running'}
+              >
+                <Images className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={page === 'settings' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('settings')}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleCloseWorkspace}
+                disabled={page === 'workspace-loading' || page === 'workspace-closing'}
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant={page === 'workspaces' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('workspaces')}
+              >
+                <Home className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={page === 'settings' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                onClick={() => setPage('settings')}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div
+        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+      >
+        {page === 'workspaces' && (
+          <WorkspacesPage
+            workspaces={workspaces}
+            activeInfo={workspaceInfo}
+            onWorkspaceSelected={() => setPage('workspace-loading')}
+            refreshWorkspaces={refreshWorkspaces}
+          />
+        )}
+        {page === 'workspace-loading' && (
+          <WorkspaceTransitionPage
+            mode="loading"
+            workspaceName={workspaceInfo.workspaceName}
+            ready={workspaceInfo.status === 'running'}
+            isError={workspaceInfo.status === 'error'}
+            onRestart={() => {
+              if (workspaceInfo.workspacePath) {
+                void window.litho.workspace.select(workspaceInfo.workspacePath);
+              }
+            }}
+            onBack={() => setPage('workspaces')}
+            onComplete={() => setPage('documents')}
+          />
+        )}
+        {page === 'workspace-closing' && (
+          <WorkspaceTransitionPage
+            mode="closing"
+            workspaceName={workspaceInfo.workspaceName}
+            ready={workspaceInfo.status === 'stopped'}
+            onComplete={() => setPage('workspaces')}
+          />
+        )}
+        {page === 'documents' && serverUrl && (
+          <DocumentsPage
+            manifest={manifest}
+            serverUrl={serverUrl}
+            loading={manifestLoading}
+            error={manifestError}
+            refetch={refetchManifest}
+            onSelectDocument={(slug) => {
+              setActiveDocSlug(slug);
+              setPage('document');
+            }}
+            onOpenDesignSystem={() => setPage('design-system-doc')}
+            onOpenAssets={() => setPage('assets')}
+          />
+        )}
+        {page === 'assets' && serverUrl && workspacePath && (
+          <AssetsPage
+            workspacePath={workspacePath}
+            serverUrl={serverUrl}
+            onBack={() => setPage('documents')}
+          />
+        )}
+        {page === 'document' && serverUrl && activeDoc && (
+          <DocumentPage
+            doc={activeDoc}
+            serverUrl={serverUrl}
+            workspacePath={workspacePath ?? ''}
+            onBack={() => setPage('documents')}
+            userName={userProfile.name ?? undefined}
+          />
+        )}
+        {page === 'design-system-doc' && serverUrl && (
+          <DesignSystemDocPage
+            serverUrl={serverUrl}
+            workspaceName={manifest?.name ?? null}
+            workspacePath={workspacePath}
+            onBack={() => setPage('documents')}
+          />
+        )}
+        {page === 'settings' && <SettingsV2Page />}
+      </div>
+    </div>
+  );
+}
+
+export { App };

@@ -1,0 +1,162 @@
+import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Chat } from '@/components/chat/chat';
+import { Button } from '@/components/ui/button';
+import { useOpencode } from '@/hooks/use-opencode';
+import { useSessionInit } from '@/hooks/use-session-init';
+
+interface DesignSystemChatProps {
+  workspacePath: string;
+  onFileEdit?: (filePath: string) => void;
+}
+
+function buildStorageKey(workspacePath: string): string {
+  return `litho-ds-session:${workspacePath}`;
+}
+
+export function DesignSystemChat({
+  workspacePath,
+  onFileEdit,
+}: DesignSystemChatProps): React.JSX.Element {
+  const { client, baseUrl, status } = useOpencode();
+  const [resetKey, setResetKey] = useState(0);
+  const [snapshotIndex, setSnapshotIndex] = useState<Record<string, string>>({});
+  const [fontContext, setFontContext] = useState('');
+
+  useEffect(() => {
+    const fontExts = new Set(['.woff2', '.woff', '.ttf', '.otf']);
+    window.litho.assets
+      .list(workspacePath, '', true)
+      .then((entries) => {
+        const fonts = entries.filter((e) => e.type === 'file' && fontExts.has(e.ext));
+        if (fonts.length === 0) return;
+        const fontPaths = fonts.map((f) => `@assets/${f.path}`).join('\n');
+        setFontContext(`\n\nAvailable font files:\n${fontPaths}`);
+      })
+      .catch(() => {
+        // keep empty
+      });
+  }, [workspacePath]);
+
+  const workspaceName = workspacePath.split('/').at(-1) ?? workspacePath;
+
+  const { sessionId, creating, createError } = useSessionInit({
+    client,
+    storageKey: buildStorageKey(workspacePath),
+    sessionTitle: `Design System — ${workspaceName}`,
+    resetKey,
+  });
+
+  const handleNewChat = () => {
+    localStorage.removeItem(buildStorageKey(workspacePath));
+    setSnapshotIndex({});
+    setResetKey((k) => k + 1);
+  };
+
+  const captureFiles = useCallback(async () => {
+    return window.litho.snapshot.readStylesFile(workspacePath);
+  }, [workspacePath]);
+
+  const handleTurnSnapshot = useCallback(
+    async ({
+      files,
+      assistantMessageId,
+      promptExcerpt,
+    }: {
+      files: Record<string, string>;
+      assistantMessageId: string;
+      promptExcerpt: string;
+    }) => {
+      try {
+        const snapshotId = await window.litho.snapshot.createStyles(
+          workspacePath,
+          files,
+          promptExcerpt,
+          assistantMessageId,
+        );
+        setSnapshotIndex((prev) => ({ ...prev, [assistantMessageId]: snapshotId }));
+      } catch {
+        // snapshot failure is non-fatal
+      }
+    },
+    [workspacePath],
+  );
+
+  const handleRevert = useCallback(
+    async (assistantMessageId: string) => {
+      const snapshotId = snapshotIndex[assistantMessageId];
+      if (!snapshotId) return;
+      try {
+        await window.litho.snapshot.restoreStyles(workspacePath, snapshotId);
+      } catch (err) {
+        console.error('[design-system-chat] Revert failed:', err);
+        toast.error('Failed to revert styles');
+      }
+    },
+    [snapshotIndex, workspacePath],
+  );
+
+  if (status === 'error') {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        <p className="text-sm text-destructive">
+          The AI server failed to start after multiple attempts.
+        </p>
+        <Button size="sm" variant="outline" onClick={() => window.litho.opencode.restart()}>
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!client || !baseUrl) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <MessageSquare className="size-8" />
+        <p className="text-sm">Waiting for AI server...</p>
+      </div>
+    );
+  }
+
+  if (creating) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="size-6 animate-spin" />
+        <p className="text-sm">Starting session...</p>
+      </div>
+    );
+  }
+
+  if (createError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-destructive">
+        <p className="text-sm">{createError}</p>
+        <Button size="sm" variant="outline" onClick={() => setResetKey((k) => k + 1)}>
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!sessionId) return <div />;
+
+  return (
+    <Chat
+      directory={workspacePath}
+      systemPrompt={`The workspace styles file is at: \`${workspacePath}/styles.css\`${fontContext}`}
+      agentName="design-system"
+      sessionId={sessionId}
+      client={client}
+      baseUrl={baseUrl}
+      onFileEdit={onFileEdit}
+      onNewChat={handleNewChat}
+      snapshotIndex={snapshotIndex}
+      onRevert={handleRevert}
+      captureFiles={captureFiles}
+      onTurnSnapshot={handleTurnSnapshot}
+    />
+  );
+}

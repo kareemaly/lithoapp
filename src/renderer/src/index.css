@@ -1,0 +1,279 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* ── Typography ───────────────────────────────────────────── */
+  --font-display: "Fraunces Variable", serif;
+  --font-sans: "Inter Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+
+  /* ── Border Radii ─────────────────────────────────────────── */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1rem;
+
+  /* ── Core palette (shadcn slots) ──────────────────────────── */
+  --color-background: #0c0a09;
+  --color-foreground: #f5f5f4;
+
+  --color-card: #1c1917;
+  --color-card-foreground: #f5f5f4;
+
+  --color-popover: #1c1917;
+  --color-popover-foreground: #f5f5f4;
+
+  --color-primary: #e8652b;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #292524;
+  --color-secondary-foreground: #f5f5f4;
+
+  --color-muted: #292524;
+  --color-muted-foreground: #a8a29e;
+
+  --color-accent: #292524;
+  --color-accent-foreground: #f5f5f4;
+
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: #fafaf9;
+
+  --color-border: #44403c;
+  --color-input: #44403c;
+  --color-ring: #e8652b;
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  --color-sidebar: #0c0a09;
+  --color-sidebar-foreground: #f5f5f4;
+  --color-sidebar-primary: #e8652b;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #292524;
+  --color-sidebar-accent-foreground: #f5f5f4;
+  --color-sidebar-border: #292524;
+  --color-sidebar-ring: #e8652b;
+
+  /* ── Chart colors ─────────────────────────────────────────── */
+  --color-chart-1: #e8652b;
+  --color-chart-2: #d4461e;
+  --color-chart-3: #f59e0b;
+  --color-chart-4: #22c55e;
+  --color-chart-5: #eab308;
+
+  /* ── Brand colors (use as bg-forge, text-ember, etc.) ────── */
+  --color-forge: #e8652b;
+  --color-ember: #d4461e;
+  --color-amber: #f59e0b;
+  --color-success: #22c55e;
+  --color-gold: #eab308;
+  --color-clay: #78716c;
+  --color-midnight: #1c1917;
+
+  /* ── Stone palette ────────────────────────────────────────── */
+  --color-stone-50: #fafaf9;
+  --color-stone-100: #f5f5f4;
+  --color-stone-200: #e7e5e4;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+  --color-stone-700: #44403c;
+  --color-stone-800: #292524;
+  --color-stone-900: #1c1917;
+  --color-stone-950: #0c0a09;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  button:not(:disabled) {
+    @apply cursor-pointer;
+  }
+}
+
+/* ── Custom scrollbars ───────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-stone-600);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── Markdown chat rendering ─────────────────────────────── */
+.markdown-chat {
+  color: var(--color-foreground);
+  line-height: 1.5;
+  word-break: break-words;
+}
+
+/* Headings — compact, no top margin on first */
+.markdown-chat h1,
+.markdown-chat h2,
+.markdown-chat h3,
+.markdown-chat h4 {
+  font-weight: 600;
+  margin-top: 0.75em;
+  margin-bottom: 0.25em;
+  line-height: 1.25;
+}
+.markdown-chat h1 {
+  font-size: 1.05em;
+}
+.markdown-chat h2 {
+  font-size: 1em;
+}
+.markdown-chat h3,
+.markdown-chat h4 {
+  font-size: 0.95em;
+}
+.markdown-chat :first-child {
+  margin-top: 0;
+}
+
+/* Paragraphs */
+.markdown-chat p {
+  margin-top: 0;
+  margin-bottom: 0.5em;
+}
+.markdown-chat p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lists */
+.markdown-chat ul,
+.markdown-chat ol {
+  margin: 0.25em 0 0.5em 0;
+  padding-left: 1.25em;
+}
+.markdown-chat li {
+  margin-bottom: 0.1em;
+}
+
+/* Inline code */
+.markdown-chat code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-muted);
+  border-radius: 0.25em;
+  padding: 0.1em 0.3em;
+}
+
+/* Fenced code blocks */
+.markdown-chat pre {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.6em 0.75em;
+  overflow-x: auto;
+  margin: 0.4em 0;
+}
+.markdown-chat pre code {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Blockquotes */
+.markdown-chat blockquote {
+  border-left: 3px solid var(--color-border);
+  margin: 0.4em 0;
+  padding: 0.1em 0.75em;
+  color: var(--color-muted-foreground);
+}
+
+/* Links */
+.markdown-chat a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Horizontal rules */
+.markdown-chat hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0.5em 0;
+}
+
+/* Tables */
+.markdown-chat table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85em;
+  margin: 0.4em 0;
+}
+.markdown-chat th,
+.markdown-chat td {
+  border: 1px solid var(--color-border);
+  padding: 0.25em 0.5em;
+  text-align: left;
+}
+.markdown-chat th {
+  background: var(--color-muted);
+  font-weight: 600;
+}
+
+/* highlight.js token colors — minimal dark theme */
+.markdown-chat .hljs-comment,
+.markdown-chat .hljs-quote {
+  color: #78716c;
+  font-style: italic;
+}
+.markdown-chat .hljs-keyword,
+.markdown-chat .hljs-selector-tag,
+.markdown-chat .hljs-built_in {
+  color: #f59e0b;
+}
+.markdown-chat .hljs-string,
+.markdown-chat .hljs-attr {
+  color: #86efac;
+}
+.markdown-chat .hljs-number,
+.markdown-chat .hljs-literal {
+  color: #67e8f9;
+}
+.markdown-chat .hljs-title,
+.markdown-chat .hljs-section,
+.markdown-chat .hljs-name {
+  color: #c4b5fd;
+}
+.markdown-chat .hljs-variable,
+.markdown-chat .hljs-template-variable {
+  color: #fca5a5;
+}
+.markdown-chat .hljs-tag {
+  color: #a8a29e;
+}
+.markdown-chat .hljs-type,
+.markdown-chat .hljs-class .hljs-title {
+  color: #67e8f9;
+}
+.markdown-chat .hljs-symbol,
+.markdown-chat .hljs-bullet,
+.markdown-chat .hljs-selector-id {
+  color: #e8652b;
+}

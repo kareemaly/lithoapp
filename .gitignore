@@ -1,0 +1,13 @@
+node_modules
+dist
+out
+*.tsbuildinfo
+*.swp
+.claude
+.history
+.env
+.DS_Store
+.eslintcache
+*.log*
+dev-app-update.yml
+resources/bin/

@@ -1,0 +1,127 @@
+import { Check, Loader2, Plug, Unplug, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import type { OpencodeClient, ProviderAuthMethod, ProviderInfo } from '@/lib/opencode-client-types';
+import { disconnectProvider } from '@/lib/provider-actions';
+import { ConnectDialog } from './connect-dialog';
+import { PingDialog } from './ping-dialog';
+
+export function ProviderRow({
+  provider,
+  isConnected,
+  defaultModel,
+  authMethods,
+  client,
+  baseUrl,
+  onRefresh,
+}: {
+  provider: ProviderInfo;
+  isConnected: boolean;
+  defaultModel?: string;
+  authMethods: ProviderAuthMethod[];
+  client: OpencodeClient;
+  baseUrl: string;
+  onRefresh: () => void;
+}): React.JSX.Element {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [pingOpen, setPingOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const handleDisconnect = async (): Promise<void> => {
+    setDisconnecting(true);
+    try {
+      await disconnectProvider(client, baseUrl, provider.id);
+      onRefresh();
+    } catch (err) {
+      console.error('[settings] Failed to disconnect:', err);
+      toast.error('Failed to disconnect provider');
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const modelCount = Object.keys(provider.models).length;
+  const defaultModelName = defaultModel
+    ? (provider.models[defaultModel]?.name ?? defaultModel)
+    : undefined;
+
+  return (
+    <>
+      <div className="flex items-center justify-between py-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{provider.name}</span>
+            <Badge variant={isConnected ? 'default' : 'outline'}>
+              {isConnected ? (
+                <span className="flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Connected
+                </span>
+              ) : (
+                'Not connected'
+              )}
+            </Badge>
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {isConnected && defaultModelName && <span>Default: {defaultModelName}</span>}
+            {isConnected && defaultModelName && modelCount > 0 && <span> · </span>}
+            {modelCount > 0 && (
+              <span>
+                {modelCount} model{modelCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+        <div>
+          {isConnected ? (
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={() => setPingOpen(true)}>
+                <Zap className="mr-1 h-3 w-3" />
+                Ping
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleDisconnect()}
+                disabled={disconnecting}
+              >
+                {disconnecting ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <Unplug className="mr-1 h-3 w-3" />
+                )}
+                Disconnect
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+              <Plug className="mr-1 h-3 w-3" />
+              Connect
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <ConnectDialog
+        provider={provider}
+        authMethods={authMethods}
+        client={client}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onConnected={onRefresh}
+      />
+
+      {isConnected && (
+        <PingDialog
+          provider={provider}
+          defaultModel={defaultModel}
+          client={client}
+          open={pingOpen}
+          onOpenChange={setPingOpen}
+        />
+      )}
+    </>
+  );
+}
