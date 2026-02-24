@@ -76,6 +76,7 @@ export function WorkspacesPage({
   const [newName, setNewName] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [selectingPath, setSelectingPath] = useState<string | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
@@ -92,6 +93,7 @@ export function WorkspacesPage({
   async function handleCreate(): Promise<void> {
     if (!newName.trim() || !newLocation) return;
     setIsCreating(true);
+    setCreateError(null);
     try {
       await window.litho.workspace.create(newLocation, newName.trim());
       await refreshWorkspaces();
@@ -100,8 +102,11 @@ export function WorkspacesPage({
       setNewLocation('');
       onWorkspaceSelected();
     } catch (err) {
-      console.error('[workspaces] Create failed:', err);
-      toast.error('Failed to create project');
+      const message =
+        err instanceof Error
+          ? err.message.replace(/^Error invoking remote method.*?:\s*/i, '')
+          : String(err);
+      setCreateError(message);
     } finally {
       setIsCreating(false);
     }
@@ -195,6 +200,8 @@ export function WorkspacesPage({
           onLocationChange={setNewLocation}
           onSubmit={handleCreate}
           isCreating={isCreating}
+          error={createError}
+          onErrorClear={() => setCreateError(null)}
         />
       </div>
     );
@@ -308,6 +315,8 @@ export function WorkspacesPage({
         onLocationChange={setNewLocation}
         onSubmit={handleCreate}
         isCreating={isCreating}
+        error={createError}
+        onErrorClear={() => setCreateError(null)}
       />
 
       <AlertDialog
@@ -344,6 +353,8 @@ function CreateDialog({
   onLocationChange,
   onSubmit,
   isCreating,
+  error,
+  onErrorClear,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -353,6 +364,8 @@ function CreateDialog({
   onLocationChange: (location: string) => void;
   onSubmit: () => void;
   isCreating: boolean;
+  error: string | null;
+  onErrorClear: () => void;
 }): React.JSX.Element {
   useEffect(() => {
     if (!open) return;
@@ -366,6 +379,11 @@ function CreateDialog({
   async function handleChooseDirectory(): Promise<void> {
     const dir = await window.litho.workspace.chooseDirectory();
     if (dir) onLocationChange(dir);
+  }
+
+  function handleNameChange(value: string): void {
+    onNameChange(value);
+    if (error) onErrorClear();
   }
 
   return (
@@ -383,7 +401,7 @@ function CreateDialog({
               id="ws-name"
               placeholder="My Brand"
               value={name}
-              onChange={(e) => onNameChange(e.target.value)}
+              onChange={(e) => handleNameChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim() && location) void onSubmit();
               }}
@@ -400,6 +418,7 @@ function CreateDialog({
               </Button>
             </div>
           </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <DialogClose asChild>

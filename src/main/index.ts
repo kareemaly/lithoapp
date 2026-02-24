@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
@@ -136,11 +136,44 @@ ipcMain.handle('workspace:list', () => getWorkspaces());
 ipcMain.handle('workspace:getActive', () => workspaceManager.getInfo());
 
 ipcMain.handle('workspace:create', async (_event, parentDir: string, name: string) => {
-  const targetPath = join(parentDir, slugify(name) || 'untitled');
-  const root = await workspaceManager.createAndStart(targetPath, name);
-  addWorkspace({ path: root, name, lastOpened: new Date().toISOString() });
-  setActiveWorkspacePath(root);
-  return root;
+  const slug = slugify(name) || 'untitled';
+  const targetPath = join(parentDir, slug);
+
+  if (existsSync(targetPath)) {
+    throw new Error(
+      `A project already exists at "${targetPath}". Choose a different name or location.`,
+    );
+  }
+
+  if (!existsSync(parentDir)) {
+    throw new Error(`The folder "${parentDir}" does not exist. Choose a different location.`);
+  }
+
+  try {
+    accessSync(parentDir, constants.W_OK);
+  } catch {
+    throw new Error(
+      `You don't have permission to create files in "${parentDir}". Choose a different location.`,
+    );
+  }
+
+  try {
+    const root = await workspaceManager.createAndStart(targetPath, name);
+    addWorkspace({ path: root, name, lastOpened: new Date().toISOString() });
+    setActiveWorkspacePath(root);
+    return root;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('ENOSPC') || message.includes('no space')) {
+      throw new Error('Your disk is full. Free up some space and try again.');
+    }
+    if (message.includes('EACCES') || message.includes('EPERM')) {
+      throw new Error(
+        `You don't have permission to create files in "${parentDir}". Choose a different location.`,
+      );
+    }
+    throw new Error(`Could not create project: ${message}`);
+  }
 });
 
 ipcMain.handle('workspace:open', async () => {
