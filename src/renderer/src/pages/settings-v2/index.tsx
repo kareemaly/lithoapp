@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AboutSection } from './about-section';
 import { AiProvidersSection } from './ai-providers-section';
+import { AppearanceSection } from './appearance-section';
 import { PrivacySection } from './privacy-section';
 import { ProfileSection } from './profile-section';
 
-type SettingsCategory = 'profile' | 'ai-providers' | 'privacy' | 'about';
+type SettingsCategory = 'appearance' | 'profile' | 'ai-providers' | 'privacy' | 'about';
 
 const categories: { id: SettingsCategory; label: string }[] = [
+  { id: 'appearance', label: 'Appearance' },
   { id: 'profile', label: 'Profile' },
   { id: 'ai-providers', label: 'AI Providers' },
   { id: 'privacy', label: 'Privacy' },
@@ -15,7 +17,7 @@ const categories: { id: SettingsCategory; label: string }[] = [
 ];
 
 export function SettingsV2Page(): React.JSX.Element {
-  const [active, setActive] = useState<SettingsCategory>('profile');
+  const [active, setActive] = useState<SettingsCategory>('appearance');
 
   return (
     <div className="flex h-full">
@@ -39,6 +41,7 @@ export function SettingsV2Page(): React.JSX.Element {
       </aside>
 
       <main className="flex-1 overflow-auto p-6">
+        {active === 'appearance' && <AppearanceSection />}
         {active === 'profile' && <ProfileSection />}
         {active === 'ai-providers' && <AiProvidersSection />}
         {active === 'privacy' && <PrivacySection />}

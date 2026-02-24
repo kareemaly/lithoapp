@@ -11,7 +11,7 @@ export function PermissionCard({
   onReply: (id: string, response: 'once' | 'always' | 'reject') => void;
 }): React.JSX.Element {
   return (
-    <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+    <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-l-amber-500">
       <CardHeader className="px-3 py-2">
         <CardTitle className="text-xs font-medium">Permission: {permission.title}</CardTitle>
       </CardHeader>

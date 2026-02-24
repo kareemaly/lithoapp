@@ -6,6 +6,16 @@ contextBridge.exposeInMainWorld('litho', {
       ipcRenderer.invoke('preferences:getUserProfile'),
     setUserProfile: (name: string, email: string): Promise<void> =>
       ipcRenderer.invoke('preferences:setUserProfile', name, email),
+    getTheme: (): Promise<'dark' | 'light' | 'system'> =>
+      ipcRenderer.invoke('preferences:getTheme'),
+    setTheme: (value: 'dark' | 'light' | 'system'): Promise<void> =>
+      ipcRenderer.invoke('preferences:setTheme', value),
+    onThemeChange: (callback: (value: 'dark' | 'light') => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: 'dark' | 'light'): void =>
+        callback(value);
+      ipcRenderer.on('preferences:theme-change', listener);
+      return () => ipcRenderer.removeListener('preferences:theme-change', listener);
+    },
   },
   telemetry: {
     getEnabled: (): Promise<boolean> => ipcRenderer.invoke('telemetry:getEnabled'),

@@ -1,11 +1,91 @@
-import { ArrowRight, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, Loader2, Monitor, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useOpencode } from '@/hooks/use-opencode';
 import { cn } from '@/lib/utils';
 import { ProviderPicker } from './provider-picker';
+
+type Theme = 'system' | 'light' | 'dark';
+
+function applyTheme(theme: Theme): void {
+  const html = document.documentElement;
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (isDark) {
+    html.classList.add('dark');
+  } else {
+    html.classList.remove('dark');
+  }
+}
+
+function ThemeSwitcher(): React.JSX.Element {
+  const [theme, setTheme] = useState<Theme>('system');
+
+  useEffect(() => {
+    window.litho.preferences
+      .getTheme()
+      .then((saved) => {
+        setTheme(saved);
+        applyTheme(saved);
+      })
+      .catch(() => {
+        applyTheme('system');
+      });
+  }, []);
+
+  async function handleThemeChange(value: Theme): Promise<void> {
+    setTheme(value);
+    applyTheme(value);
+    await window.litho.preferences.setTheme(value);
+  }
+
+  return (
+    <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted/50 p-0.5">
+      <button
+        type="button"
+        onClick={() => handleThemeChange('system')}
+        className={cn(
+          'flex items-center justify-center rounded-full p-1.5 transition-colors',
+          theme === 'system'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+        title="System"
+      >
+        <Monitor className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleThemeChange('light')}
+        className={cn(
+          'flex items-center justify-center rounded-full p-1.5 transition-colors',
+          theme === 'light'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+        title="Light"
+      >
+        <Sun className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleThemeChange('dark')}
+        className={cn(
+          'flex items-center justify-center rounded-full p-1.5 transition-colors',
+          theme === 'dark'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+        title="Dark"
+      >
+        <Moon className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
 
 interface OnboardingPageProps {
   onComplete: (name: string, email: string) => void;
@@ -18,6 +98,8 @@ function LithoLogo({ className }: { className?: string }): React.JSX.Element {
       viewBox="671 564 706 920"
       fill="none"
       className={className}
+      role="img"
+      aria-label="Litho logo"
     >
       <path
         fill="#C2410C"
@@ -69,10 +151,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* ── Brand panel ─────────────────────────────── */}
-      <div className="relative flex w-[38%] shrink-0 flex-col items-center justify-center overflow-hidden border-r border-border bg-stone-900 px-10 py-12">
-        {/* Dot grid texture */}
+      <div className="relative flex w-[38%] shrink-0 flex-col items-center justify-center overflow-hidden border-r border-border bg-background px-10 py-12">
+        {/* Gradient overlay - left side fades to transparent on right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-stone-100 via-stone-100/50 to-transparent dark:from-stone-900 dark:via-stone-900/50 dark:to-transparent" />
+        {/* Dot grid texture - light mode */}
         <div
-          className="absolute inset-0 opacity-[0.035]"
+          className="absolute inset-0 opacity-[0.06] dark:hidden"
+          style={{
+            backgroundImage: 'radial-gradient(rgb(0 0 0) 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        />
+        {/* Dot grid texture - dark mode */}
+        <div
+          className="absolute inset-0 hidden opacity-[0.025] dark:block"
           style={{
             backgroundImage: 'radial-gradient(rgb(255 255 255) 1px, transparent 1px)',
             backgroundSize: '24px 24px',
@@ -98,7 +190,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
 
           <ul className="flex flex-col gap-3 text-left">
             {FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-xs text-stone-400">
+              <li
+                key={f}
+                className="flex items-start gap-2.5 text-xs text-stone-500 dark:text-stone-400"
+              >
                 <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-forge" />
                 {f}
               </li>
@@ -106,18 +201,25 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps): React.JSX.E
           </ul>
         </div>
 
-        <p className="absolute bottom-7 text-[11px] text-stone-600">$50, once. Thank you.</p>
+        <p className="absolute bottom-7 text-[11px] text-stone-400 dark:text-stone-600">
+          $50, once. Thank you.
+        </p>
       </div>
 
       {/* ── Form panel ──────────────────────────────── */}
-      <div className="flex flex-1 flex-col justify-center px-14 py-12">
+      <div className="relative flex flex-1 flex-col justify-center px-14 py-12">
+        {/* Theme switcher - top right */}
+        <div className="absolute right-6 top-6">
+          <ThemeSwitcher />
+        </div>
+
         {/* Step progress */}
         <div className="mb-10 flex gap-1.5">
           <div className="h-0.5 w-8 rounded-full bg-forge" />
           <div
             className={cn(
               'h-0.5 w-8 rounded-full transition-colors duration-300',
-              step === 2 ? 'bg-forge' : 'bg-stone-700',
+              step === 2 ? 'bg-forge' : 'bg-stone-300 dark:bg-stone-700',
             )}
           />
         </div>

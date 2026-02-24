@@ -98,7 +98,7 @@ function ToolPill({ part }: { part: Record<string, unknown> }): React.JSX.Elemen
 
 function ThinkingPill(): React.JSX.Element {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-600 dark:text-violet-400 animate-pulse">
+    <span className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-700 dark:text-violet-400 animate-pulse">
       <Brain className="h-2.5 w-2.5" />
       <span>Thinking...</span>
     </span>
@@ -111,7 +111,7 @@ function ThoughtPill({ text }: { text: string }): React.JSX.Element {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-600 hover:bg-violet-500/20 dark:text-violet-400"
+          className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-700 hover:bg-violet-500/20 dark:text-violet-400"
         >
           <Brain className="h-2.5 w-2.5" />
           <span>Thought</span>

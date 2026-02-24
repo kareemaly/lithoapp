@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { electronApp, is, optimizer } from '@electron-toolkit/utils';
 import { slugify } from '@kareemaly/litho-workspace-server';
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from 'electron';
 import {
   createAssetDirectory,
   deleteAsset,
@@ -34,9 +34,12 @@ import {
 } from './snapshot-manager';
 import {
   getTelemetryEnabled,
+  getTheme,
   getUserProfile,
   setTelemetryEnabled,
+  setTheme,
   setUserProfile,
+  type Theme,
 } from './telemetry-store';
 import { WorkspaceManager } from './workspace-manager';
 import {
@@ -93,6 +96,8 @@ ipcMain.handle('preferences:getUserProfile', () => getUserProfile());
 ipcMain.handle('preferences:setUserProfile', (_event, name: string, email: string) =>
   setUserProfile(name, email),
 );
+ipcMain.handle('preferences:getTheme', () => getTheme());
+ipcMain.handle('preferences:setTheme', (_event, value: Theme) => setTheme(value));
 ipcMain.handle('opencode:status', () => opencodeManager.getStatus());
 ipcMain.handle('opencode:start', () => opencodeManager.start());
 ipcMain.handle('opencode:restart', () => opencodeManager.restart());
@@ -284,6 +289,15 @@ exportManager.on('progress', (data) => {
 workspaceManager.on('status-change', (data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('workspace:status-change', data);
+  }
+});
+
+// Listen for system theme changes
+nativeTheme.on('updated', () => {
+  const theme = getTheme();
+  if (theme === 'system' && mainWindow && !mainWindow.isDestroyed()) {
+    const isDark = nativeTheme.shouldUseDarkColors;
+    mainWindow.webContents.send('preferences:theme-change', isDark ? 'dark' : 'light');
   }
 });
 

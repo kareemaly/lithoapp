@@ -145,7 +145,7 @@ export function Chat({
             <div>${chat.totalCost.toFixed(2)}</div>
           ) : (
             totalTok > 0 && (
-              <div className="text-[10px] text-emerald-600 dark:text-emerald-400">free</div>
+              <div className="text-[10px] text-emerald-700 dark:text-emerald-400">free</div>
             )
           )}
           {totalTok > 0 && <div className="text-[10px]">{formatTokens(totalTok)} tokens</div>}

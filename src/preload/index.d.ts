@@ -8,6 +8,9 @@ interface LithoAPI {
   preferences: {
     getUserProfile: () => Promise<{ name: string | null; email: string | null }>;
     setUserProfile: (name: string, email: string) => Promise<void>;
+    getTheme: () => Promise<'dark' | 'light' | 'system'>;
+    setTheme: (value: 'dark' | 'light' | 'system') => Promise<void>;
+    onThemeChange: (callback: (value: 'dark' | 'light') => void) => () => void;
   };
   telemetry: {
     getEnabled: () => Promise<boolean>;

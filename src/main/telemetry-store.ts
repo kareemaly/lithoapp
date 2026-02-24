@@ -2,13 +2,16 @@ import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app } from 'electron';
 
+export type Theme = 'dark' | 'light' | 'system';
+
 interface AppPreferences {
   telemetryEnabled: boolean;
   name?: string;
   email?: string;
+  theme: Theme;
 }
 
-const DEFAULTS: AppPreferences = { telemetryEnabled: true };
+const DEFAULTS: AppPreferences = { telemetryEnabled: true, theme: 'system' };
 
 function getStorePath(): string {
   return join(app.getPath('userData'), 'app-preferences.json');
@@ -45,4 +48,12 @@ export function getUserProfile(): { name: string | null; email: string | null } 
 
 export function setUserProfile(name: string, email: string): void {
   write({ ...read(), name, email });
+}
+
+export function getTheme(): Theme {
+  return read().theme;
+}
+
+export function setTheme(value: Theme): void {
+  write({ ...read(), theme: value });
 }

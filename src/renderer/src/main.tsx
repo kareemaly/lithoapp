@@ -16,6 +16,30 @@ const DSN =
 
 declare const __APP_VERSION__: string | undefined;
 
+async function initTheme(): Promise<void> {
+  const theme = await window.litho.preferences.getTheme();
+
+  function applyTheme(isDark: boolean): void {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.add('dark');
+    } else {
+      html.classList.remove('dark');
+    }
+  }
+
+  if (theme === 'system') {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(isDark);
+  } else {
+    applyTheme(theme === 'dark');
+  }
+
+  window.litho.preferences.onThemeChange((value) => {
+    applyTheme(value === 'dark');
+  });
+}
+
 const telemetryEnabled = localStorage.getItem('litho-telemetry-enabled') !== 'false';
 if (telemetryEnabled) {
   Sentry.init({
@@ -42,3 +66,5 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+void initTheme();
