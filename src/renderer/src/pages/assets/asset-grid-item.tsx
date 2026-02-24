@@ -1,4 +1,4 @@
-import { Folder, Images, MoreHorizontal, Pencil, Trash2, Type } from 'lucide-react';
+import { Folder, FolderMinus, Images, MoreHorizontal, Pencil, Trash2, Type } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,6 +26,7 @@ export function AssetGridItem({
   onRename,
   onDelete,
   onDropAsset,
+  onMoveToParent,
 }: {
   entry: AssetEntry;
   serverUrl: string;
@@ -37,6 +38,7 @@ export function AssetGridItem({
   onRename: () => void;
   onDelete: () => void;
   onDropAsset?: (assetPath: string) => void;
+  onMoveToParent?: () => void;
 }): React.JSX.Element {
   const isImage = IMAGE_EXTS.has(entry.ext);
   const isFont = FONT_EXTS.has(entry.ext);
@@ -139,6 +141,12 @@ export function AssetGridItem({
               <Pencil className="mr-2 h-3.5 w-3.5" />
               Rename
             </DropdownMenuItem>
+            {onMoveToParent && (
+              <DropdownMenuItem onClick={onMoveToParent}>
+                <FolderMinus className="mr-2 h-3.5 w-3.5" />
+                Move to Top Level
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={onDelete} className="text-destructive">
               <Trash2 className="mr-2 h-3.5 w-3.5" />
               Delete

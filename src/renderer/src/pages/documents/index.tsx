@@ -204,6 +204,7 @@ export function DocumentsPage({
   const [deleteFolderName, setDeleteFolderName] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [isBackDragOver, setIsBackDragOver] = useState(false);
   // Tracks folder names that exist only in local state (no documents yet).
   // These are ephemeral — they disappear on page reload.
   const [localFolderNames, setLocalFolderNames] = useState<Set<string>>(new Set());
@@ -355,7 +356,31 @@ export function DocumentsPage({
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-end justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: drop target for moving documents out of folder */}
+        <div
+          className={cn(
+            'flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors',
+            isBackDragOver && 'bg-primary/10 ring-2 ring-primary/30',
+          )}
+          onDragOver={(e) => {
+            if (!currentFolder) return;
+            if (!e.dataTransfer.types.includes('text/plain')) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setIsBackDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsBackDragOver(false);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsBackDragOver(false);
+            const slug = e.dataTransfer.getData('text/plain');
+            if (slug) void handleRemoveFromFolder(slug);
+          }}
+        >
           {currentFolder && (
             <button
               type="button"
@@ -1194,7 +1219,7 @@ function DocumentCard({
                   }}
                 >
                   <FolderMinus className="mr-2 h-3.5 w-3.5" />
-                  Remove from Folder
+                  Move to Top Level
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

@@ -370,6 +370,11 @@ export function AssetsPage({
                   ? (assetPath) => void handleMoveToFolder(assetPath, entry.path)
                   : undefined
               }
+              onMoveToParent={
+                currentDir && entry.type !== 'directory'
+                  ? () => void handleMoveToParent(entry.path)
+                  : undefined
+              }
             />
           ))}
         </div>

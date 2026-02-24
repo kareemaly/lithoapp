@@ -50,6 +50,7 @@ function FeaturedCard({
 }): React.JSX.Element {
   const modelCount = Object.keys(provider.models).length;
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: interactive only when not connected (role is set conditionally)
     <div
       role={isConnected ? undefined : 'button'}
       tabIndex={isConnected ? undefined : 0}
