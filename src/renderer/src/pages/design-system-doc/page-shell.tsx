@@ -32,7 +32,7 @@ export function PageThumbnail({
     <button
       type="button"
       className={cn(
-        'flex w-full cursor-pointer items-center gap-2.5 rounded-sm px-3 py-2 text-left transition-colors hover:bg-muted/50',
+        'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/50',
         isActive ? 'border-l-2 border-primary bg-muted pl-[10px]' : 'border-l-2 border-transparent',
       )}
       onClick={() => onClick(page.id)}
@@ -42,7 +42,7 @@ export function PageThumbnail({
       </span>
       <span
         className={cn(
-          'truncate text-xs',
+          'truncate text-sm',
           isActive ? 'font-medium text-foreground' : 'text-muted-foreground',
         )}
       >

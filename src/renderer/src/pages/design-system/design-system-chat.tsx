@@ -23,6 +23,14 @@ export function DesignSystemChat({
   const [resetKey, setResetKey] = useState(0);
   const [snapshotIndex, setSnapshotIndex] = useState<Record<string, string>>({});
   const [fontContext, setFontContext] = useState('');
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    window.litho.preferences
+      .getUserProfile()
+      .then((profile) => setUserName(profile.name ?? ''))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fontExts = new Set(['.woff2', '.woff', '.ttf', '.otf']);
@@ -100,11 +108,15 @@ export function DesignSystemChat({
   if (status === 'error') {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <p className="text-sm text-destructive">
+        <p className="text-base text-destructive">
           The AI server failed to start after multiple attempts.
         </p>
-        <Button size="sm" variant="outline" onClick={() => window.litho.opencode.restart()}>
-          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+        <Button
+          variant="outline"
+          className="h-10 px-4 text-sm"
+          onClick={() => window.litho.opencode.restart()}
+        >
+          <RefreshCw className="mr-1.5 h-4 w-4" />
           Retry
         </Button>
       </div>
@@ -115,7 +127,7 @@ export function DesignSystemChat({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
         <MessageSquare className="size-8" />
-        <p className="text-sm">Waiting for AI server...</p>
+        <p className="text-base">Waiting for AI server...</p>
       </div>
     );
   }
@@ -123,8 +135,8 @@ export function DesignSystemChat({
   if (creating) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-        <Loader2 className="size-6 animate-spin" />
-        <p className="text-sm">Starting session...</p>
+        <Loader2 className="size-8 animate-spin" />
+        <p className="text-base">Starting session...</p>
       </div>
     );
   }
@@ -132,9 +144,13 @@ export function DesignSystemChat({
   if (createError) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-destructive">
-        <p className="text-sm">{createError}</p>
-        <Button size="sm" variant="outline" onClick={() => setResetKey((k) => k + 1)}>
-          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+        <p className="text-base">{createError}</p>
+        <Button
+          variant="outline"
+          className="h-10 px-4 text-sm"
+          onClick={() => setResetKey((k) => k + 1)}
+        >
+          <RefreshCw className="mr-1.5 h-4 w-4" />
           Retry
         </Button>
       </div>
@@ -146,7 +162,7 @@ export function DesignSystemChat({
   return (
     <Chat
       directory={workspacePath}
-      systemPrompt={`The workspace styles file is at: \`${workspacePath}/styles.css\`${fontContext}`}
+      systemPrompt={`${userName ? `The user's name is ${userName}. ` : ''}The workspace styles file is at: \`${workspacePath}/styles.css\`${fontContext}`}
       agentName="design-system"
       sessionId={sessionId}
       client={client}

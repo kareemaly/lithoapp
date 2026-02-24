@@ -133,9 +133,9 @@ export function DesignSystemDocPage({
           {/* Toolbar */}
           <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
             <Button variant="ghost" size="icon-sm" onClick={onBack}>
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            <span className="truncate text-sm font-semibold">Design System</span>
+            <span className="truncate text-base font-semibold">Design System</span>
           </div>
 
           {/* Sidebar + viewer */}
@@ -161,7 +161,10 @@ export function DesignSystemDocPage({
 
             {/* Viewer */}
             <div ref={viewerRef} className="relative flex-1">
-              <div ref={scrollRef} className="absolute inset-0 overflow-auto bg-neutral-900">
+              <div
+                ref={scrollRef}
+                className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
+              >
                 {loading && (
                   <div className="flex h-full items-center justify-center">
                     <Spinner />
@@ -169,18 +172,18 @@ export function DesignSystemDocPage({
                 )}
                 {error && !designSystem && (
                   <div className="flex h-full flex-col items-center justify-center gap-4 px-8">
-                    <p className="text-sm font-medium text-destructive">
+                    <p className="text-base font-medium text-destructive">
                       styles.css has a syntax error
                     </p>
-                    <pre className="w-full max-w-lg whitespace-pre-wrap rounded-md bg-neutral-800 p-4 text-xs text-neutral-200">
+                    <pre className="w-full max-w-lg whitespace-pre-wrap rounded-md bg-muted p-4 text-xs text-foreground">
                       {error}
                     </pre>
                     <Button
-                      size="sm"
                       variant="outline"
+                      className="h-10 px-4 text-sm"
                       onClick={() => void navigator.clipboard.writeText(error)}
                     >
-                      <Copy className="mr-1.5 h-3.5 w-3.5" />
+                      <Copy className="mr-1.5 h-4 w-4" />
                       Copy error
                     </Button>
                   </div>
@@ -206,10 +209,10 @@ export function DesignSystemDocPage({
         {workspacePath ? (
           <DesignSystemChat workspacePath={workspacePath} onFileEdit={handleFileEdit} />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 border-l text-muted-foreground">
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
             <MessageSquare className="size-8" />
-            <p className="text-sm font-medium">AI Chat</p>
-            <p className="text-xs">Open a workspace to start chatting</p>
+            <p className="text-base font-semibold">AI Chat</p>
+            <p className="text-sm">Open a workspace to start chatting</p>
           </div>
         )}
       </ResizablePanel>
