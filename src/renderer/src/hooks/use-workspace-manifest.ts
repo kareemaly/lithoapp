@@ -6,6 +6,8 @@ export interface ManifestDocument {
   size: { width: number; height: number; unit: 'mm' | 'px' };
   pages: string[];
   updatedAt: string;
+  createdAt: string;
+  folder?: string;
 }
 
 export interface WorkspaceManifest {
