@@ -236,7 +236,7 @@ function App(): React.JSX.Element {
 
       {/* Main content */}
       <div
-        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+        className={`flex-1 ${page === 'document' || page === 'design-system-doc' || page === 'workspace-loading' || page === 'workspace-closing' || page === 'settings' || page === 'assets' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
       >
         {page === 'workspaces' && (
           <WorkspacesPage

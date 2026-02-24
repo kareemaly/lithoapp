@@ -1,4 +1,4 @@
-import { ArrowLeft, FolderPlus, Images, Trash2, Upload } from 'lucide-react';
+import { ChevronLeft, FolderPlus, Images, Loader2, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -16,21 +16,11 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import type { AssetEntry } from '../../../../shared/types';
 import { AssetGridItem, IMAGE_EXTS } from './asset-grid-item';
 import { PreviewDialog } from './asset-preview-dialog';
@@ -106,7 +96,15 @@ export function AssetsPage({
     }
   }
 
+  function isExternalFileDrag(e: React.DragEvent): boolean {
+    return (
+      e.dataTransfer.types.includes('Files') &&
+      !e.dataTransfer.types.includes('application/x-litho-asset')
+    );
+  }
+
   function handleDragOver(e: React.DragEvent): void {
+    if (!isExternalFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(true);
   }
@@ -169,6 +167,34 @@ export function AssetsPage({
     toast.success(`Deleted ${paths.length} item(s)`);
   }
 
+  async function handleMoveToFolder(assetPath: string, folderPath: string): Promise<void> {
+    const fileName = assetPath.split('/').pop() ?? '';
+    const newPath = `${folderPath}/${fileName}`;
+    try {
+      await window.litho.assets.rename(workspacePath, assetPath, newPath);
+      await loadEntries();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to move asset');
+    }
+  }
+
+  async function handleMoveToParent(assetPath: string): Promise<void> {
+    if (!currentDir) return;
+    const fileName = assetPath.split('/').pop() ?? '';
+    const parentDir = currentDir.includes('/')
+      ? currentDir.substring(0, currentDir.lastIndexOf('/'))
+      : '';
+    const newPath = parentDir ? `${parentDir}/${fileName}` : fileName;
+    try {
+      await window.litho.assets.rename(workspacePath, assetPath, newPath);
+      await loadEntries();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to move asset');
+    }
+  }
+
+  const [isBackDragOver, setIsBackDragOver] = useState(false);
+
   async function handleRename(): Promise<void> {
     if (!renameTarget || !renameValue.trim()) return;
     const newName = renameTarget.ext
@@ -201,106 +227,129 @@ export function AssetsPage({
     });
   }
 
-  // Breadcrumb segments from currentDir
-  const breadcrumbSegments = currentDir ? currentDir.split('/') : [];
+  const folderName = currentDir ? currentDir.split('/').pop() : null;
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop drop zone
     <div
-      className={`flex flex-col gap-4 ${isDragOver ? 'ring-2 ring-primary ring-inset rounded-lg' : ''}`}
+      className={`flex h-full flex-col gap-6 overflow-auto p-6 ${isDragOver ? 'ring-2 ring-primary ring-inset rounded-lg' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Top bar */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1 text-sm flex-1 min-w-0">
+      {/* Header */}
+      <div className="flex items-end justify-between">
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: drop target for moving assets out of folder */}
+        <div
+          className={`flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors ${isBackDragOver ? 'bg-primary/10 ring-2 ring-primary/30' : ''}`}
+          onDragOver={(e) => {
+            if (!currentDir) return;
+            if (!e.dataTransfer.types.includes('application/x-litho-asset')) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setIsBackDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsBackDragOver(false);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsBackDragOver(false);
+            const assetPath = e.dataTransfer.getData('application/x-litho-asset');
+            if (assetPath) void handleMoveToParent(assetPath);
+          }}
+        >
           <button
             type="button"
-            className="font-semibold hover:text-primary transition-colors"
-            onClick={() => setCurrentDir('')}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
+            onClick={currentDir ? () => setCurrentDir('') : onBack}
           >
-            Assets
+            <ChevronLeft className="h-5 w-5 text-muted-foreground" />
           </button>
-          {breadcrumbSegments.map((seg, i) => {
-            const path = breadcrumbSegments.slice(0, i + 1).join('/');
-            return (
-              <span key={path} className="flex items-center gap-1">
-                <span className="text-muted-foreground">/</span>
-                <button
-                  type="button"
-                  className={`hover:text-primary transition-colors ${i === breadcrumbSegments.length - 1 ? 'font-medium' : ''}`}
-                  onClick={() => setCurrentDir(path)}
-                >
-                  {seg}
-                </button>
-              </span>
-            );
-          })}
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+            {folderName ?? 'Assets'}
+          </h1>
         </div>
 
-        {selected.size > 0 && (
-          <Button size="sm" variant="destructive" onClick={() => setBulkDeleteConfirm(true)}>
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Delete {selected.size}
+        <div className="flex items-center gap-2">
+          {selected.size > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setBulkDeleteConfirm(true)}
+              className="h-10 px-4 text-sm"
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Delete {selected.size}
+            </Button>
+          )}
+
+          <Button onClick={() => fileInputRef.current?.click()} className="h-10 px-4 text-sm">
+            <Upload className="mr-1.5 h-4 w-4" />
+            Upload
           </Button>
-        )}
 
-        <Button size="sm" variant="outline" onClick={() => setNewFolderOpen(true)}>
-          <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
-          New Folder
-        </Button>
+          <Button
+            variant="outline"
+            onClick={() => setNewFolderOpen(true)}
+            className="h-10 px-4 text-sm"
+          >
+            <FolderPlus className="mr-1.5 h-4 w-4" />
+            New Folder
+          </Button>
 
-        <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-          <Upload className="mr-1.5 h-3.5 w-3.5" />
-          Upload
-        </Button>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.woff2,.woff,.ttf,.otf"
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) void handleUploadFiles(e.target.files);
-            e.target.value = '';
-          }}
-        />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.woff2,.woff,.ttf,.otf"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) void handleUploadFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
+        </div>
       </div>
 
       {/* Content */}
       {isLoading && entries.length === 0 ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">
-          Loading…
+        <div className="flex flex-1 flex-col items-center justify-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading assets...</p>
         </div>
       ) : error ? (
-        <p className="text-sm text-destructive">{error}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center">
+          <div className="flex flex-col gap-1">
+            <p className="text-base font-semibold text-foreground">Failed to load assets</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => void loadEntries()}
+            className="h-10 px-4 text-sm"
+          >
+            Retry
+          </Button>
+        </div>
       ) : entries.length === 0 ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Images />
-            </EmptyMedia>
-            <EmptyTitle>No assets yet</EmptyTitle>
-            <EmptyDescription>
-              Upload images, SVGs, or fonts to use them in your documents.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Upload files
-            </Button>
-          </EmptyContent>
-        </Empty>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center">
+          <Images className="h-10 w-10 text-muted-foreground/40" />
+          <div className="flex flex-col gap-1">
+            <p className="text-base font-semibold text-foreground">No assets yet</p>
+            <p className="text-sm text-muted-foreground">
+              Upload images, SVGs, or fonts to use in your documents.
+            </p>
+          </div>
+          <Button onClick={() => fileInputRef.current?.click()} className="h-10 px-4 text-sm">
+            <Upload className="mr-1.5 h-4 w-4" />
+            Upload files
+          </Button>
+        </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
           {entries.map((entry) => (
             <AssetGridItem
               key={entry.path}
@@ -316,6 +365,11 @@ export function AssetsPage({
                 setRenameValue(entry.ext ? entry.name.slice(0, -entry.ext.length) : entry.name);
               }}
               onDelete={() => setDeleteConfirm(entry.path)}
+              onDropAsset={
+                entry.type === 'directory'
+                  ? (assetPath) => void handleMoveToFolder(assetPath, entry.path)
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -326,23 +380,26 @@ export function AssetsPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Folder</DialogTitle>
-            <DialogDescription>Create a new folder in the current directory.</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="folder-name">Folder name</Label>
-            <Input
-              id="folder-name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void handleCreateFolder()}
-              autoFocus
-            />
-          </div>
+          <Input
+            placeholder="Folder name"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void handleCreateFolder()}
+            className="h-11 px-4 text-base"
+            autoFocus
+          />
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" className="h-11">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={() => void handleCreateFolder()} disabled={!newFolderName.trim()}>
+            <Button
+              onClick={() => void handleCreateFolder()}
+              disabled={!newFolderName.trim()}
+              className="h-11"
+            >
               Create
             </Button>
           </DialogFooter>
@@ -354,28 +411,31 @@ export function AssetsPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename</DialogTitle>
-            <DialogDescription>Enter a new name for "{renameTarget?.name}".</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="rename-value">New name</Label>
-            <div className="flex items-center gap-1">
-              <Input
-                id="rename-value"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void handleRename()}
-                autoFocus
-              />
-              {renameTarget?.ext && (
-                <span className="shrink-0 text-sm text-muted-foreground">{renameTarget.ext}</span>
-              )}
-            </div>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="New name"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && void handleRename()}
+              className="h-11 px-4 text-base"
+              autoFocus
+            />
+            {renameTarget?.ext && (
+              <span className="shrink-0 text-sm text-muted-foreground">{renameTarget.ext}</span>
+            )}
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" className="h-11">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={() => void handleRename()} disabled={!renameValue.trim()}>
+            <Button
+              onClick={() => void handleRename()}
+              disabled={!renameValue.trim()}
+              className="h-11"
+            >
               Rename
             </Button>
           </DialogFooter>
