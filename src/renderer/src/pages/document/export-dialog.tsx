@@ -316,7 +316,7 @@ function ConfigurationView({
       </Tabs>
 
       <DialogFooter>
-        <Button onClick={onExport} disabled={!canExport}>
+        <Button className="h-11" onClick={onExport} disabled={!canExport}>
           Export
         </Button>
       </DialogFooter>

@@ -174,188 +174,236 @@ export function DocumentPage({
   }, []);
   const modKey = isMac ? '⌘' : 'Ctrl';
 
+  const toolbar = (
+    <DocumentToolbar
+      docTitle={doc.title}
+      onBack={onBack}
+      zoom={zoom}
+      fitToWidth={fitToWidth}
+      editMode={editMode}
+      modKey={modKey}
+      onZoomIn={handleZoomIn}
+      onZoomOut={handleZoomOut}
+      onFitToWidth={handleFitToWidth}
+      onToggleEditMode={() => setEditMode((m) => !m)}
+      onExport={() => setExportOpen(true)}
+    />
+  );
+
+  const pages = (
+    <div
+      className="flex flex-col items-center gap-6 py-6"
+      style={{ paddingInline: VIEWER_PADDING }}
+    >
+      {doc.pages.map((pageId, index) => (
+        <PageFrame
+          key={pageId}
+          ref={(el) => setPageRef(index, el)}
+          pageId={pageId}
+          index={index}
+          slug={doc.slug}
+          serverUrl={serverUrl}
+          pageWidthPx={pageWidthPx}
+          pageHeightPx={pageHeightPx}
+          zoom={zoom}
+          editMode={editMode}
+          hasError={errorPages.has(pageId)}
+        />
+      ))}
+    </div>
+  );
+
+  const exportDialog = (
+    <ExportDialog doc={doc} serverUrl={serverUrl} open={exportOpen} onOpenChange={setExportOpen} />
+  );
+
+  if (editMode) {
+    return (
+      <TooltipProvider>
+        <div className="flex h-full flex-col">
+          {toolbar}
+          <div ref={viewerRef} className="relative min-w-0 flex-1">
+            <div
+              ref={scrollRef}
+              className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
+            >
+              {pages}
+            </div>
+          </div>
+          {exportDialog}
+        </div>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <TooltipProvider>
-      <div className="flex h-full flex-col">
-        {/* Toolbar */}
-        <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-          <Button variant="ghost" size="icon-sm" onClick={onBack}>
-            <ArrowLeft className="h-3.5 w-3.5" />
-          </Button>
-          <span className="truncate text-sm font-semibold">{doc.title}</span>
+      <ResizablePanelGroup orientation="horizontal" className="h-full">
+        <ResizablePanel defaultSize={70} minSize={40}>
+          <div className="flex h-full flex-col">
+            {toolbar}
+            <div className="flex min-h-0 flex-1">
+              {/* Sidebar */}
+              <div className="w-48 shrink-0 border-r">
+                <ScrollArea className="h-full">
+                  <div className="flex flex-col gap-2 p-3">
+                    {doc.pages.map((pageId, index) => (
+                      <PageThumbnail
+                        key={pageId}
+                        pageId={pageId}
+                        index={index}
+                        slug={doc.slug}
+                        serverUrl={serverUrl}
+                        pageWidthPx={pageWidthPx}
+                        pageHeightPx={pageHeightPx}
+                        isActive={currentPage === index}
+                        onClick={handleThumbnailClick}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
 
-          <div className="ml-auto flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={handleZoomOut}>
-                  <Minus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Zoom out <Kbd>{modKey}</Kbd>
-                <Kbd>-</Kbd>
-              </TooltipContent>
-            </Tooltip>
-
-            <span className="w-12 text-center text-xs tabular-nums text-muted-foreground">
-              {Math.round(zoom * 100)}%
-            </span>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={handleZoomIn}>
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Zoom in <Kbd>{modKey}</Kbd>
-                <Kbd>+</Kbd>
-              </TooltipContent>
-            </Tooltip>
-
-            <Separator orientation="vertical" className="mx-1 h-5" />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={fitToWidth ? 'secondary' : 'ghost'}
-                  size="icon-sm"
-                  onClick={handleFitToWidth}
+              {/* Main viewer */}
+              <div ref={viewerRef} className="relative min-w-0 flex-1">
+                <div
+                  ref={scrollRef}
+                  className="absolute inset-0 overflow-auto bg-neutral-200 dark:bg-neutral-900"
                 >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Fit to width <Kbd>{modKey}</Kbd>
-                <Kbd>0</Kbd>
-              </TooltipContent>
-            </Tooltip>
-
-            <Separator orientation="vertical" className="mx-1 h-5" />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editMode ? 'secondary' : 'ghost'}
-                  size="icon-sm"
-                  onClick={() => setEditMode((m) => !m)}
-                >
-                  <Pencil className={cn('h-3.5 w-3.5', editMode && 'text-primary')} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{editMode ? 'Exit edit mode' : 'Edit mode'}</TooltipContent>
-            </Tooltip>
-
-            <Separator orientation="vertical" className="mx-1 h-5" />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={() => setExportOpen(true)}>
-                  <Download className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Export document</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Content area */}
-        {editMode ? (
-          // Edit mode: full-width viewer, no thumbnails, no chat
-          <div ref={viewerRef} className="relative min-w-0 flex-1">
-            <div ref={scrollRef} className="absolute inset-0 overflow-auto">
-              <div
-                className="flex flex-col items-center gap-6 py-6"
-                style={{ paddingInline: VIEWER_PADDING }}
-              >
-                {doc.pages.map((pageId, index) => (
-                  <PageFrame
-                    key={pageId}
-                    ref={(el) => setPageRef(index, el)}
-                    pageId={pageId}
-                    index={index}
-                    slug={doc.slug}
-                    serverUrl={serverUrl}
-                    pageWidthPx={pageWidthPx}
-                    pageHeightPx={pageHeightPx}
-                    zoom={zoom}
-                    editMode
-                    hasError={errorPages.has(pageId)}
-                  />
-                ))}
+                  {pages}
+                </div>
               </div>
             </div>
           </div>
-        ) : (
-          <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-            <ResizablePanel defaultSize={70} minSize={40}>
-              <div className="flex h-full">
-                {/* Sidebar */}
-                <div className="w-48 shrink-0 border-r">
-                  <ScrollArea className="h-full">
-                    <div className="flex flex-col gap-2 p-3">
-                      {doc.pages.map((pageId, index) => (
-                        <PageThumbnail
-                          key={pageId}
-                          pageId={pageId}
-                          index={index}
-                          slug={doc.slug}
-                          serverUrl={serverUrl}
-                          pageWidthPx={pageWidthPx}
-                          pageHeightPx={pageHeightPx}
-                          isActive={currentPage === index}
-                          onClick={handleThumbnailClick}
-                        />
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
+          {exportDialog}
+        </ResizablePanel>
 
-                {/* Main viewer */}
-                <div ref={viewerRef} className="relative min-w-0 flex-1">
-                  <div ref={scrollRef} className="absolute inset-0 overflow-auto">
-                    <div
-                      className="flex flex-col items-center gap-6 py-6"
-                      style={{ paddingInline: VIEWER_PADDING }}
-                    >
-                      {doc.pages.map((pageId, index) => (
-                        <PageFrame
-                          key={pageId}
-                          ref={(el) => setPageRef(index, el)}
-                          pageId={pageId}
-                          index={index}
-                          slug={doc.slug}
-                          serverUrl={serverUrl}
-                          pageWidthPx={pageWidthPx}
-                          pageHeightPx={pageHeightPx}
-                          zoom={zoom}
-                          hasError={errorPages.has(pageId)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </ResizablePanel>
+        <ResizableHandle withHandle />
 
-            <ResizableHandle withHandle />
-
-            <ResizablePanel defaultSize={30} minSize={20}>
-              <DocumentChat doc={doc} workspacePath={workspacePath} userName={userName} />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )}
-
-        <ExportDialog
-          doc={doc}
-          serverUrl={serverUrl}
-          open={exportOpen}
-          onOpenChange={setExportOpen}
-        />
-      </div>
+        <ResizablePanel defaultSize={30} minSize={20}>
+          <DocumentChat doc={doc} workspacePath={workspacePath} userName={userName} />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </TooltipProvider>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Toolbar
+// ---------------------------------------------------------------------------
+
+function DocumentToolbar({
+  docTitle,
+  onBack,
+  zoom,
+  fitToWidth,
+  editMode,
+  modKey,
+  onZoomIn,
+  onZoomOut,
+  onFitToWidth,
+  onToggleEditMode,
+  onExport,
+}: {
+  docTitle: string;
+  onBack: () => void;
+  zoom: number;
+  fitToWidth: boolean;
+  editMode: boolean;
+  modKey: string;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitToWidth: () => void;
+  onToggleEditMode: () => void;
+  onExport: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+      <Button variant="ghost" size="icon-sm" onClick={onBack}>
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
+      <span className="truncate text-base font-semibold">{docTitle}</span>
+
+      <div className="ml-auto flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" onClick={onZoomOut}>
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Zoom out <Kbd>{modKey}</Kbd>
+            <Kbd>-</Kbd>
+          </TooltipContent>
+        </Tooltip>
+
+        <span className="w-12 text-center text-xs tabular-nums text-muted-foreground">
+          {Math.round(zoom * 100)}%
+        </span>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" onClick={onZoomIn}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Zoom in <Kbd>{modKey}</Kbd>
+            <Kbd>+</Kbd>
+          </TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="mx-1 h-5" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={fitToWidth ? 'secondary' : 'ghost'}
+              size="icon-sm"
+              onClick={onFitToWidth}
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Fit to width <Kbd>{modKey}</Kbd>
+            <Kbd>0</Kbd>
+          </TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="mx-1 h-5" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={editMode ? 'secondary' : 'ghost'}
+              size="icon-sm"
+              onClick={onToggleEditMode}
+            >
+              <Pencil className={cn('h-3.5 w-3.5', editMode && 'text-primary')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{editMode ? 'Exit edit mode' : 'Edit mode'}</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="mx-1 h-5" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" onClick={onExport}>
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Export document</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Thumbnails
+// ---------------------------------------------------------------------------
 
 function PageThumbnail({
   pageId,
@@ -399,7 +447,7 @@ function PageThumbnail({
     <button
       type="button"
       className={cn(
-        'group flex flex-col items-center gap-1 rounded-md p-1 text-left transition-colors hover:bg-muted/50',
+        'group flex flex-col items-center gap-1 rounded-lg p-1 text-left transition-colors hover:bg-muted/50',
         isActive && 'bg-muted',
       )}
       onClick={() => onClick(index)}
@@ -436,6 +484,10 @@ function PageThumbnail({
     </button>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Page frame
+// ---------------------------------------------------------------------------
 
 const PageFrame = forwardRef<
   HTMLDivElement,
