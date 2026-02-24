@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import {
+  ChevronLeft,
   FilePlus,
   FileText,
   Folder,
@@ -8,6 +9,7 @@ import {
   FolderPlus,
   Images,
   Loader2,
+  LogOut,
   MoreHorizontal,
   Palette,
   Pencil,
@@ -30,7 +32,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -42,33 +43,53 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useDesignSystem } from '@/hooks/use-design-system';
 import type { ManifestDocument, WorkspaceManifest } from '@/hooks/use-workspace-manifest';
+import { cn } from '@/lib/utils';
 
-const SIZE_PRESETS = [
-  'A4',
-  'A3',
-  'A5',
-  'Letter',
-  'Legal',
-  'Tabloid',
-  'Instagram Post',
-  'Instagram Story',
-  'Facebook Post',
-  'Twitter/X Post',
-  'LinkedIn Banner',
-  'Slide 16:9',
-  'Slide 4:3',
-  'YouTube Thumbnail',
+interface SizePreset {
+  name: string;
+  width: number;
+  height: number;
+  unit: 'mm' | 'px';
+}
+
+interface SizeCategory {
+  label: string;
+  sizes: SizePreset[];
+}
+
+const SIZE_CATEGORIES: SizeCategory[] = [
+  {
+    label: 'Print',
+    sizes: [
+      { name: 'A4', width: 210, height: 297, unit: 'mm' },
+      { name: 'A3', width: 297, height: 420, unit: 'mm' },
+      { name: 'A5', width: 148, height: 210, unit: 'mm' },
+      { name: 'Letter', width: 216, height: 279, unit: 'mm' },
+      { name: 'Legal', width: 216, height: 356, unit: 'mm' },
+      { name: 'Tabloid', width: 279, height: 432, unit: 'mm' },
+    ],
+  },
+  {
+    label: 'Social Media',
+    sizes: [
+      { name: 'Instagram Post', width: 1080, height: 1080, unit: 'px' },
+      { name: 'Instagram Story', width: 1080, height: 1920, unit: 'px' },
+      { name: 'Facebook Post', width: 1200, height: 630, unit: 'px' },
+      { name: 'Twitter/X Post', width: 1200, height: 675, unit: 'px' },
+      { name: 'LinkedIn Banner', width: 1584, height: 396, unit: 'px' },
+      { name: 'YouTube Thumbnail', width: 1280, height: 720, unit: 'px' },
+    ],
+  },
+  {
+    label: 'Presentation',
+    sizes: [
+      { name: 'Slide 16:9', width: 1920, height: 1080, unit: 'px' },
+      { name: 'Slide 4:3', width: 1024, height: 768, unit: 'px' },
+    ],
+  },
 ];
 
 /** Fixed thumbnail container height in px. */
@@ -92,13 +113,23 @@ function groupDocuments(docs: ManifestDocument[]): {
   return { ungrouped, folders };
 }
 
+async function parseApiError(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: string };
+    if (body.error) return body.error;
+  } catch {
+    // Response wasn't JSON
+  }
+  return `Server error (${res.status})`;
+}
+
 async function updateDocFolder(serverUrl: string, slug: string, folder: string): Promise<void> {
   const res = await fetch(`${serverUrl}/api/documents/${slug}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ folder }),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error(await parseApiError(res));
 }
 
 /** Strip slashes to prevent accidental nesting. */
@@ -115,6 +146,7 @@ interface DocumentsPageProps {
   onSelectDocument: (slug: string) => void;
   onOpenDesignSystem: () => void;
   onOpenAssets: () => void;
+  onCloseWorkspace: () => void;
 }
 
 export function DocumentsPage({
@@ -126,11 +158,14 @@ export function DocumentsPage({
   onSelectDocument,
   onOpenDesignSystem,
   onOpenAssets,
+  onCloseWorkspace,
 }: DocumentsPageProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newSize, setNewSize] = useState('A4');
+  const [sizeCategory, setSizeCategory] = useState(SIZE_CATEGORIES[0].label);
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
@@ -160,22 +195,28 @@ export function DocumentsPage({
   async function handleCreate(): Promise<void> {
     if (!newTitle.trim()) return;
     setIsCreating(true);
+    setCreateError(null);
     try {
       const body: Record<string, string> = { title: newTitle.trim(), size: newSize };
       // Auto-assign to current folder when creating from inside one.
       if (currentFolder) body.folder = currentFolder;
-      await fetch(`${serverUrl}/api/documents`, {
+      const res = await fetch(`${serverUrl}/api/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      if (!res.ok) {
+        setCreateError(await parseApiError(res));
+        return;
+      }
       await refetch();
       setCreateOpen(false);
       setNewTitle('');
       setNewSize('A4');
+      setCreateError(null);
     } catch (err) {
       console.error('[documents] Create failed:', err);
-      toast.error('Failed to create document');
+      setCreateError('Could not connect to the workspace server.');
     } finally {
       setIsCreating(false);
     }
@@ -191,7 +232,11 @@ export function DocumentsPage({
     setIsDeleting(deleteConfirm);
     setDeleteConfirm(null);
     try {
-      await fetch(`${serverUrl}/api/documents/${deleteConfirm}`, { method: 'DELETE' });
+      const res = await fetch(`${serverUrl}/api/documents/${deleteConfirm}`, { method: 'DELETE' });
+      if (!res.ok) {
+        toast.error(await parseApiError(res));
+        return;
+      }
       await refetch();
     } catch (err) {
       console.error('[documents] Delete failed:', err);
@@ -266,7 +311,7 @@ export function DocumentsPage({
   }
 
   if (error && !manifest) {
-    return <p className="text-sm text-destructive">Failed to load documents: {error}</p>;
+    return <p className="text-base text-destructive">Failed to load documents: {error}</p>;
   }
 
   const workspaceName = manifest?.name ?? 'Documents';
@@ -275,56 +320,114 @@ export function DocumentsPage({
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <div className="flex flex-1 min-w-0 items-center gap-1 text-sm">
-          <button
-            type="button"
-            className={
-              currentFolder
-                ? 'font-semibold hover:text-primary transition-colors'
-                : 'text-lg font-semibold cursor-default'
-            }
-            onClick={() => setCurrentFolder(null)}
-          >
-            {workspaceName}
-          </button>
+      <div className="flex items-end justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           {currentFolder && (
-            <span className="flex items-center gap-1">
-              <span className="text-muted-foreground">/</span>
-              <span className="font-medium">{currentFolder}</span>
-            </span>
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
+              onClick={() => setCurrentFolder(null)}
+            >
+              <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+            </button>
           )}
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+            {currentFolder ?? workspaceName}
+          </h1>
         </div>
-        {currentFolder === null && (
-          <Button size="sm" variant="outline" onClick={() => setNewFolderOpen(true)}>
-            <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
-            New Folder
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+            <FilePlus className="mr-1.5 h-4 w-4" />
+            New Document
           </Button>
-        )}
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <FilePlus className="mr-1.5 h-3.5 w-3.5" />
-          New Document
-        </Button>
+          {currentFolder === null && (
+            <Button
+              variant="outline"
+              onClick={() => setNewFolderOpen(true)}
+              className="h-10 px-4 text-sm"
+            >
+              <FolderPlus className="mr-1.5 h-4 w-4" />
+              New Folder
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={onCloseWorkspace}
+            className="h-10 px-4 text-sm"
+          >
+            <LogOut className="mr-1.5 h-4 w-4" />
+            Exit
+          </Button>
+        </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
-        {currentFolder === null ? (
-          <>
-            <DesignSystemCard serverUrl={serverUrl} onClick={onOpenDesignSystem} />
-            <AssetsCard onClick={onOpenAssets} />
-            {allFolderNames.map((name) => (
-              <FolderCard
-                key={name}
-                name={name}
-                docCount={folderMap.get(name)?.length ?? 0}
-                onClick={() => setCurrentFolder(name)}
-                onRename={(n) => setRenameFolderOld(n)}
-                onDelete={(n) => setDeleteFolderName(n)}
-                onDropDoc={(slug) => void handleAssignFolder(slug, name)}
-              />
-            ))}
-            {ungrouped.map((doc) => (
+      {/* Utility cards — only at top level */}
+      {currentFolder === null && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <DesignSystemCard serverUrl={serverUrl} onClick={onOpenDesignSystem} />
+          <AssetsCard onClick={onOpenAssets} />
+        </div>
+      )}
+
+      {/* Document grid */}
+      {currentFolder === null && allFolderNames.length === 0 && ungrouped.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+          <FileText className="h-10 w-10 text-muted-foreground/40" />
+          <div className="flex flex-col gap-1">
+            <p className="text-base font-semibold text-foreground">No documents yet</p>
+            <p className="text-sm text-muted-foreground">
+              Create your first document to start designing.
+            </p>
+          </div>
+          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+            <FilePlus className="mr-1.5 h-4 w-4" />
+            New Document
+          </Button>
+        </div>
+      ) : currentFolder !== null && (folderDocs?.length ?? 0) === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+          <Folder className="h-10 w-10 text-muted-foreground/40" />
+          <div className="flex flex-col gap-1">
+            <p className="text-base font-semibold text-foreground">This folder is empty</p>
+            <p className="text-sm text-muted-foreground">
+              Create a document or drag one in from the top level.
+            </p>
+          </div>
+          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4 text-sm">
+            <FilePlus className="mr-1.5 h-4 w-4" />
+            New Document
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+          {currentFolder === null ? (
+            <>
+              {allFolderNames.map((name) => (
+                <FolderCard
+                  key={name}
+                  name={name}
+                  docCount={folderMap.get(name)?.length ?? 0}
+                  onClick={() => setCurrentFolder(name)}
+                  onRename={(n) => setRenameFolderOld(n)}
+                  onDelete={(n) => setDeleteFolderName(n)}
+                  onDropDoc={(slug) => void handleAssignFolder(slug, name)}
+                />
+              ))}
+              {ungrouped.map((doc) => (
+                <DocumentCard
+                  key={doc.slug}
+                  doc={doc}
+                  serverUrl={serverUrl}
+                  isDeleting={isDeleting === doc.slug}
+                  onDelete={confirmDelete}
+                  onAssignFolder={(slug) => setAssignFolderSlug(slug)}
+                  onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
+                  onClick={() => onSelectDocument(doc.slug)}
+                />
+              ))}
+            </>
+          ) : (
+            folderDocs?.map((doc) => (
               <DocumentCard
                 key={doc.slug}
                 doc={doc}
@@ -335,23 +438,10 @@ export function DocumentsPage({
                 onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
                 onClick={() => onSelectDocument(doc.slug)}
               />
-            ))}
-          </>
-        ) : (
-          folderDocs?.map((doc) => (
-            <DocumentCard
-              key={doc.slug}
-              doc={doc}
-              serverUrl={serverUrl}
-              isDeleting={isDeleting === doc.slug}
-              onDelete={confirmDelete}
-              onAssignFolder={(slug) => setAssignFolderSlug(slug)}
-              onRemoveFromFolder={(slug) => void handleRemoveFromFolder(slug)}
-              onClick={() => onSelectDocument(doc.slug)}
-            />
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* New Folder dialog */}
       <Dialog
@@ -364,24 +454,24 @@ export function DocumentsPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Folder</DialogTitle>
-            <DialogDescription>Create a folder to organise your documents.</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Input
-              placeholder="Marketing"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(sanitizeFolderName(e.target.value))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newFolderName.trim()) handleCreateFolder();
-              }}
-              autoFocus
-            />
-          </div>
+          <Input
+            placeholder="Folder name"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(sanitizeFolderName(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newFolderName.trim()) handleCreateFolder();
+            }}
+            className="h-11 px-4 text-base"
+            autoFocus
+          />
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" className="h-11">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="h-11">
               Create
             </Button>
           </DialogFooter>
@@ -390,46 +480,78 @@ export function DocumentsPage({
 
       {/* Create document dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Document</DialogTitle>
-            <DialogDescription>
-              {currentFolder
-                ? `Create a new document in "${currentFolder}".`
-                : 'Create a new document in this workspace.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="doc-title">Title</Label>
-              <Input
-                id="doc-title"
-                placeholder="Annual Report"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Size</Label>
-              <Select value={newSize} onValueChange={setNewSize}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SIZE_PRESETS.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
+        <DialogContent className="gap-0 p-0 sm:max-w-[70vw]">
+          <div className="flex flex-col gap-4 p-6 pb-5">
+            <DialogHeader>
+              <DialogTitle>New Document</DialogTitle>
+            </DialogHeader>
+            <Input
+              id="doc-title"
+              placeholder="Document title"
+              value={newTitle}
+              onChange={(e) => {
+                setNewTitle(e.target.value);
+                if (createError) setCreateError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newTitle.trim()) void handleCreate();
+              }}
+              className="h-11 px-4 text-base"
+              autoFocus
+            />
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+
+          {/* Category sidebar + size cards */}
+          <div className="flex border-t">
+            <nav className="flex w-40 shrink-0 flex-col gap-1 border-r p-3">
+              {SIZE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.label}
+                  type="button"
+                  className={cn(
+                    'rounded-md px-3 py-2 text-left text-sm font-medium transition-colors',
+                    sizeCategory === cat.label
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                  )}
+                  onClick={() => setSizeCategory(cat.label)}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </nav>
+            <div className="flex-1 p-5">
+              {SIZE_CATEGORIES.filter((cat) => cat.label === sizeCategory).map((cat) => (
+                <div
+                  key={cat.label}
+                  className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                >
+                  {cat.sizes.map((size) => (
+                    <SizeCard
+                      key={size.name}
+                      size={size}
+                      isSelected={newSize === size.name}
+                      onSelect={() => setNewSize(size.name)}
+                    />
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              ))}
             </div>
           </div>
-          <DialogFooter>
+
+          {/* Footer */}
+          <DialogFooter className="border-t px-6 py-4">
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" className="h-11">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={() => void handleCreate()} disabled={isCreating || !newTitle.trim()}>
+            <Button
+              onClick={() => void handleCreate()}
+              disabled={isCreating || !newTitle.trim()}
+              className="h-11"
+            >
               {isCreating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               Create
             </Button>
@@ -512,6 +634,52 @@ export function DocumentsPage({
   );
 }
 
+/** Max height for the aspect-ratio shape inside a size card. */
+const SIZE_CARD_MAX_H = 56;
+
+function SizeCard({
+  size,
+  isSelected,
+  onSelect,
+}: {
+  size: SizePreset;
+  isSelected: boolean;
+  onSelect: () => void;
+}): React.JSX.Element {
+  const dims =
+    size.unit === 'mm' ? `${size.width} × ${size.height} mm` : `${size.width} × ${size.height} px`;
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'flex flex-col items-center gap-2 rounded-lg px-3 py-3 transition-colors',
+        isSelected ? 'bg-primary/10' : 'hover:bg-muted/50',
+      )}
+      onClick={onSelect}
+    >
+      <div
+        className="flex w-full items-center justify-center"
+        style={{ height: SIZE_CARD_MAX_H }}
+      >
+        <div
+          className={cn(
+            'max-w-full rounded-sm border-2',
+            isSelected ? 'border-primary bg-primary/15' : 'border-muted-foreground/30 bg-muted',
+          )}
+          style={{ aspectRatio: `${size.width} / ${size.height}`, height: '100%', maxHeight: SIZE_CARD_MAX_H }}
+        />
+      </div>
+      <div className="flex flex-col items-center gap-0.5">
+        <p className={cn('text-base leading-tight', isSelected ? 'font-semibold' : 'font-medium')}>
+          {size.name}
+        </p>
+        <p className="text-sm text-muted-foreground">{dims}</p>
+      </div>
+    </button>
+  );
+}
+
 function MoveFolderDialog({
   open,
   folders,
@@ -528,11 +696,10 @@ function MoveFolderDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Move to folder</DialogTitle>
-          <DialogDescription>Select a folder to move this document into.</DialogDescription>
         </DialogHeader>
         {folders.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            No folders yet — use the New Folder button to create one.
+            No folders yet. Create one first from the documents page.
           </p>
         ) : (
           <div className="flex flex-col gap-1">
@@ -540,7 +707,7 @@ function MoveFolderDialog({
               <button
                 key={f}
                 type="button"
-                className="flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base hover:bg-accent"
                 onClick={() => onAssign(f)}
               >
                 <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -550,7 +717,7 @@ function MoveFolderDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="h-11">
             Cancel
           </Button>
         </DialogFooter>
@@ -581,24 +748,22 @@ function RenameFolderDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename folder</DialogTitle>
-          <DialogDescription>Enter a new name for &quot;{oldName}&quot;.</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="rename-folder">Folder name</Label>
-          <Input
-            id="rename-folder"
-            value={value}
-            onChange={(e) => setValue(sanitizeFolderName(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && isValid) onRename(value.trim());
-            }}
-          />
-        </div>
+        <Input
+          id="rename-folder"
+          placeholder="Folder name"
+          value={value}
+          onChange={(e) => setValue(sanitizeFolderName(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && isValid) onRename(value.trim());
+          }}
+          className="h-11 px-4 text-base"
+        />
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="h-11">
             Cancel
           </Button>
-          <Button disabled={!isValid} onClick={() => onRename(value.trim())}>
+          <Button disabled={!isValid} onClick={() => onRename(value.trim())} className="h-11">
             Rename
           </Button>
         </DialogFooter>
@@ -653,7 +818,7 @@ function FolderCard({
       onDrop={handleDrop}
     >
       <div
-        className="relative flex items-center justify-center overflow-hidden border-b bg-neutral-100"
+        className="relative flex items-center justify-center overflow-hidden border-b bg-muted/30"
         style={{ height: THUMB_HEIGHT }}
       >
         <Folder className="h-12 w-12 text-muted-foreground/30" />
@@ -695,9 +860,9 @@ function FolderCard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-0.5 px-3 py-2.5">
-        <p className="truncate text-sm font-medium">{name}</p>
-        <p className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-1 px-4 py-3">
+        <p className="truncate text-base font-semibold">{name}</p>
+        <p className="text-sm text-muted-foreground">
           {docCount} {docCount === 1 ? 'document' : 'documents'}
         </p>
       </div>
@@ -712,60 +877,42 @@ function DesignSystemCard({
   serverUrl: string;
   onClick: () => void;
 }): React.JSX.Element {
-  const { designSystem, loading } = useDesignSystem(serverUrl);
+  const { designSystem } = useDesignSystem(serverUrl);
 
   const totalColors = designSystem
     ? designSystem.colors.palettes.reduce((sum, p) => sum + p.shades.length, 0)
     : 0;
   const families = designSystem?.typography.families.length ?? 0;
-  const sizes = designSystem?.typography.sizes.length ?? 0;
-
-  const previewPalettes = designSystem?.colors.palettes.slice(0, 3) ?? [];
+  const previewPalette = designSystem?.colors.palettes.find(
+    (p) => p.name.toLowerCase() === 'primary',
+  ) ?? designSystem?.colors.palettes[0];
+  const previewShades = previewPalette?.shades.slice(0, 8) ?? [];
 
   return (
     <button
       type="button"
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/40"
+      className="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/50"
       onClick={onClick}
     >
-      <div
-        className="relative overflow-hidden border-b bg-neutral-100"
-        style={{ height: THUMB_HEIGHT }}
-      >
-        {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <Spinner />
-          </div>
-        ) : previewPalettes.length > 0 ? (
-          <div className="flex h-full flex-col">
-            {previewPalettes.map((palette) => (
-              <div key={palette.name} className="flex flex-1">
-                {palette.shades.map((shade) => (
-                  <div
-                    key={shade.variable}
-                    className="flex-1"
-                    style={{ backgroundColor: shade.value }}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Palette className="h-8 w-8" />
-          </div>
-        )}
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
-          <Palette className="h-2.5 w-2.5" />
-          Design System
+      {previewShades.length > 0 ? (
+        <div className="flex h-9 shrink-0 overflow-hidden rounded-md">
+          {previewShades.map((shade) => (
+            <div
+              key={shade.variable}
+              className="h-full w-3"
+              style={{ backgroundColor: shade.value }}
+            />
+          ))}
         </div>
-      </div>
-      <div className="flex flex-col gap-0.5 px-3 py-2.5">
-        <p className="truncate text-sm font-medium">Design System</p>
-        <p className="text-xs text-muted-foreground">
-          {designSystem
-            ? `${totalColors} colors · ${families} families · ${sizes} sizes`
-            : 'Loading tokens…'}
+      ) : (
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Palette className="h-4.5 w-4.5 text-muted-foreground" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-base font-semibold">Design System</p>
+        <p className="text-sm text-muted-foreground">
+          {designSystem ? `${totalColors} colors, ${families} fonts` : 'Colors, fonts, tokens'}
         </p>
       </div>
     </button>
@@ -776,22 +923,15 @@ function AssetsCard({ onClick }: { onClick: () => void }): React.JSX.Element {
   return (
     <button
       type="button"
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/40"
+      className="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/50"
       onClick={onClick}
     >
-      <div
-        className="relative flex items-center justify-center overflow-hidden border-b bg-neutral-100"
-        style={{ height: THUMB_HEIGHT }}
-      >
-        <Images className="h-10 w-10 text-muted-foreground/40" />
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
-          <Images className="h-2.5 w-2.5" />
-          Assets
-        </div>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+        <Images className="h-4.5 w-4.5 text-muted-foreground" />
       </div>
-      <div className="flex flex-col gap-0.5 px-3 py-2.5">
-        <p className="truncate text-sm font-medium">Assets</p>
-        <p className="text-xs text-muted-foreground">Images, SVGs, fonts</p>
+      <div className="min-w-0">
+        <p className="text-base font-semibold">Assets</p>
+        <p className="text-sm text-muted-foreground">Images, SVGs, fonts</p>
       </div>
     </button>
   );
@@ -831,17 +971,14 @@ function DocumentCard({
   }, []);
 
   // The iframe renders at the full document pixel size, then CSS scale()
-  // shrinks it to fill the card width. overflow-hidden crops the bottom
-  // so every card has the same fixed height regardless of aspect ratio.
+  // shrinks it to fit the card thumbnail. Portrait documents scale to fit
+  // width (cropping the bottom). Landscape documents scale to fill the
+  // thumbnail height (cropping the right side).
   const iframeWidth = doc.size.width * (doc.size.unit === 'mm' ? 3.7795 : 1); // mm→px at 96dpi
   const aspect = doc.size.height / doc.size.width;
   const iframeHeight = iframeWidth * aspect;
-  const scale = containerWidth / iframeWidth;
-
-  function formatSize(size: { width: number; height: number; unit: string }): string {
-    if (size.unit === 'mm') return `${size.width} x ${size.height} mm`;
-    return `${size.width} x ${size.height} px`;
-  }
+  const isLandscape = doc.size.width > doc.size.height;
+  const scale = isLandscape ? THUMB_HEIGHT / iframeHeight : containerWidth / iframeWidth;
 
   return (
     <button
@@ -875,7 +1012,7 @@ function DocumentCard({
     >
       <div
         ref={containerRef}
-        className="relative overflow-hidden border-b bg-white"
+        className="relative overflow-hidden border-b bg-muted/30"
         style={{ height: THUMB_HEIGHT }}
       >
         {previewUrl ? (
@@ -943,18 +1080,15 @@ function DocumentCard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-0.5 px-3 py-2.5">
-        <p className="truncate text-sm font-medium">{doc.title}</p>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span>{formatSize(doc.size)}</span>
-          <span>&middot;</span>
+      <div className="flex flex-col gap-1 px-4 py-3">
+        <p className="truncate text-base font-semibold">{doc.title}</p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>
             {doc.pages.length} {doc.pages.length === 1 ? 'page' : 'pages'}
           </span>
+          <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/50" />
+          <span>{formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
-        </p>
       </div>
     </button>
   );

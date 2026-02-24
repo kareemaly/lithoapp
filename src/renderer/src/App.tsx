@@ -1,4 +1,4 @@
-import { Files, Home, Images, Loader2, LogOut, Palette, Settings2 } from 'lucide-react';
+import { Files, Home, Images, Loader2, Palette, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeSwitcher } from '@/components/theme-switcher';
@@ -210,14 +210,6 @@ function App(): React.JSX.Element {
               >
                 <Settings2 className="h-3.5 w-3.5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleCloseWorkspace}
-                disabled={page === 'workspace-loading' || page === 'workspace-closing'}
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </Button>
             </>
           ) : (
             <>
@@ -291,6 +283,7 @@ function App(): React.JSX.Element {
             }}
             onOpenDesignSystem={() => setPage('design-system-doc')}
             onOpenAssets={() => setPage('assets')}
+            onCloseWorkspace={handleCloseWorkspace}
           />
         )}
         {page === 'assets' && serverUrl && workspacePath && (
